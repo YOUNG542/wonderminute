@@ -1,0 +1,622 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		BEA2E71B2E3D9870006C4F74 /* wonderminuteApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = BEA2E71A2E3D9870006C4F74 /* wonderminuteApp.swift */; };
+		BEA2E71D2E3D9870006C4F74 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BEA2E71C2E3D9870006C4F74 /* ContentView.swift */; };
+		BEA2E71F2E3D9872006C4F74 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = BEA2E71E2E3D9872006C4F74 /* Assets.xcassets */; };
+		BEA2E7232E3D9872006C4F74 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = BEA2E7222E3D9872006C4F74 /* Preview Assets.xcassets */; };
+		BEA2E72D2E3D9872006C4F74 /* wonderminuteTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BEA2E72C2E3D9872006C4F74 /* wonderminuteTests.swift */; };
+		BEA2E7372E3D9872006C4F74 /* wonderminuteUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BEA2E7362E3D9872006C4F74 /* wonderminuteUITests.swift */; };
+		BEA2E7392E3D9872006C4F74 /* wonderminuteUITestsLaunchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BEA2E7382E3D9872006C4F74 /* wonderminuteUITestsLaunchTests.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		BEA2E7292E3D9872006C4F74 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = BEA2E70F2E3D9870006C4F74 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = BEA2E7162E3D9870006C4F74;
+			remoteInfo = wonderminute;
+		};
+		BEA2E7332E3D9872006C4F74 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = BEA2E70F2E3D9870006C4F74 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = BEA2E7162E3D9870006C4F74;
+			remoteInfo = wonderminute;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		BEA2E7172E3D9870006C4F74 /* wonderminute.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = wonderminute.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		BEA2E71A2E3D9870006C4F74 /* wonderminuteApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = wonderminuteApp.swift; sourceTree = "<group>"; };
+		BEA2E71C2E3D9870006C4F74 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		BEA2E71E2E3D9872006C4F74 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		BEA2E7202E3D9872006C4F74 /* wonderminute.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = wonderminute.entitlements; sourceTree = "<group>"; };
+		BEA2E7222E3D9872006C4F74 /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
+		BEA2E7282E3D9872006C4F74 /* wonderminuteTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = wonderminuteTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		BEA2E72C2E3D9872006C4F74 /* wonderminuteTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = wonderminuteTests.swift; sourceTree = "<group>"; };
+		BEA2E7322E3D9872006C4F74 /* wonderminuteUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = wonderminuteUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		BEA2E7362E3D9872006C4F74 /* wonderminuteUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = wonderminuteUITests.swift; sourceTree = "<group>"; };
+		BEA2E7382E3D9872006C4F74 /* wonderminuteUITestsLaunchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = wonderminuteUITestsLaunchTests.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		BEA2E7142E3D9870006C4F74 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		BEA2E7252E3D9872006C4F74 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		BEA2E72F2E3D9872006C4F74 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		BEA2E70E2E3D9870006C4F74 = {
+			isa = PBXGroup;
+			children = (
+				BEA2E7192E3D9870006C4F74 /* wonderminute */,
+				BEA2E72B2E3D9872006C4F74 /* wonderminuteTests */,
+				BEA2E7352E3D9872006C4F74 /* wonderminuteUITests */,
+				BEA2E7182E3D9870006C4F74 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		BEA2E7182E3D9870006C4F74 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				BEA2E7172E3D9870006C4F74 /* wonderminute.app */,
+				BEA2E7282E3D9872006C4F74 /* wonderminuteTests.xctest */,
+				BEA2E7322E3D9872006C4F74 /* wonderminuteUITests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		BEA2E7192E3D9870006C4F74 /* wonderminute */ = {
+			isa = PBXGroup;
+			children = (
+				BEA2E71A2E3D9870006C4F74 /* wonderminuteApp.swift */,
+				BEA2E71C2E3D9870006C4F74 /* ContentView.swift */,
+				BEA2E71E2E3D9872006C4F74 /* Assets.xcassets */,
+				BEA2E7202E3D9872006C4F74 /* wonderminute.entitlements */,
+				BEA2E7212E3D9872006C4F74 /* Preview Content */,
+			);
+			path = wonderminute;
+			sourceTree = "<group>";
+		};
+		BEA2E7212E3D9872006C4F74 /* Preview Content */ = {
+			isa = PBXGroup;
+			children = (
+				BEA2E7222E3D9872006C4F74 /* Preview Assets.xcassets */,
+			);
+			path = "Preview Content";
+			sourceTree = "<group>";
+		};
+		BEA2E72B2E3D9872006C4F74 /* wonderminuteTests */ = {
+			isa = PBXGroup;
+			children = (
+				BEA2E72C2E3D9872006C4F74 /* wonderminuteTests.swift */,
+			);
+			path = wonderminuteTests;
+			sourceTree = "<group>";
+		};
+		BEA2E7352E3D9872006C4F74 /* wonderminuteUITests */ = {
+			isa = PBXGroup;
+			children = (
+				BEA2E7362E3D9872006C4F74 /* wonderminuteUITests.swift */,
+				BEA2E7382E3D9872006C4F74 /* wonderminuteUITestsLaunchTests.swift */,
+			);
+			path = wonderminuteUITests;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		BEA2E7162E3D9870006C4F74 /* wonderminute */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = BEA2E73C2E3D9872006C4F74 /* Build configuration list for PBXNativeTarget "wonderminute" */;
+			buildPhases = (
+				BEA2E7132E3D9870006C4F74 /* Sources */,
+				BEA2E7142E3D9870006C4F74 /* Frameworks */,
+				BEA2E7152E3D9870006C4F74 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = wonderminute;
+			productName = wonderminute;
+			productReference = BEA2E7172E3D9870006C4F74 /* wonderminute.app */;
+			productType = "com.apple.product-type.application";
+		};
+		BEA2E7272E3D9872006C4F74 /* wonderminuteTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = BEA2E73F2E3D9872006C4F74 /* Build configuration list for PBXNativeTarget "wonderminuteTests" */;
+			buildPhases = (
+				BEA2E7242E3D9872006C4F74 /* Sources */,
+				BEA2E7252E3D9872006C4F74 /* Frameworks */,
+				BEA2E7262E3D9872006C4F74 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				BEA2E72A2E3D9872006C4F74 /* PBXTargetDependency */,
+			);
+			name = wonderminuteTests;
+			productName = wonderminuteTests;
+			productReference = BEA2E7282E3D9872006C4F74 /* wonderminuteTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		BEA2E7312E3D9872006C4F74 /* wonderminuteUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = BEA2E7422E3D9872006C4F74 /* Build configuration list for PBXNativeTarget "wonderminuteUITests" */;
+			buildPhases = (
+				BEA2E72E2E3D9872006C4F74 /* Sources */,
+				BEA2E72F2E3D9872006C4F74 /* Frameworks */,
+				BEA2E7302E3D9872006C4F74 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				BEA2E7342E3D9872006C4F74 /* PBXTargetDependency */,
+			);
+			name = wonderminuteUITests;
+			productName = wonderminuteUITests;
+			productReference = BEA2E7322E3D9872006C4F74 /* wonderminuteUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		BEA2E70F2E3D9870006C4F74 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 1540;
+				LastUpgradeCheck = 1540;
+				TargetAttributes = {
+					BEA2E7162E3D9870006C4F74 = {
+						CreatedOnToolsVersion = 15.4;
+					};
+					BEA2E7272E3D9872006C4F74 = {
+						CreatedOnToolsVersion = 15.4;
+						TestTargetID = BEA2E7162E3D9870006C4F74;
+					};
+					BEA2E7312E3D9872006C4F74 = {
+						CreatedOnToolsVersion = 15.4;
+						TestTargetID = BEA2E7162E3D9870006C4F74;
+					};
+				};
+			};
+			buildConfigurationList = BEA2E7122E3D9870006C4F74 /* Build configuration list for PBXProject "wonderminute" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = BEA2E70E2E3D9870006C4F74;
+			productRefGroup = BEA2E7182E3D9870006C4F74 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				BEA2E7162E3D9870006C4F74 /* wonderminute */,
+				BEA2E7272E3D9872006C4F74 /* wonderminuteTests */,
+				BEA2E7312E3D9872006C4F74 /* wonderminuteUITests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		BEA2E7152E3D9870006C4F74 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				BEA2E7232E3D9872006C4F74 /* Preview Assets.xcassets in Resources */,
+				BEA2E71F2E3D9872006C4F74 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		BEA2E7262E3D9872006C4F74 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		BEA2E7302E3D9872006C4F74 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		BEA2E7132E3D9870006C4F74 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				BEA2E71D2E3D9870006C4F74 /* ContentView.swift in Sources */,
+				BEA2E71B2E3D9870006C4F74 /* wonderminuteApp.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		BEA2E7242E3D9872006C4F74 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				BEA2E72D2E3D9872006C4F74 /* wonderminuteTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		BEA2E72E2E3D9872006C4F74 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				BEA2E7372E3D9872006C4F74 /* wonderminuteUITests.swift in Sources */,
+				BEA2E7392E3D9872006C4F74 /* wonderminuteUITestsLaunchTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		BEA2E72A2E3D9872006C4F74 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = BEA2E7162E3D9870006C4F74 /* wonderminute */;
+			targetProxy = BEA2E7292E3D9872006C4F74 /* PBXContainerItemProxy */;
+		};
+		BEA2E7342E3D9872006C4F74 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = BEA2E7162E3D9870006C4F74 /* wonderminute */;
+			targetProxy = BEA2E7332E3D9872006C4F74 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		BEA2E73A2E3D9872006C4F74 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		BEA2E73B2E3D9872006C4F74 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				SWIFT_COMPILATION_MODE = wholemodule;
+			};
+			name = Release;
+		};
+		BEA2E73D2E3D9872006C4F74 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = wonderminute/wonderminute.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_ASSET_PATHS = "\"wonderminute/Preview Content\"";
+				DEVELOPMENT_TEAM = 9LM3A69TA4;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
+				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
+				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
+				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphonesimulator*]" = YES;
+				"INFOPLIST_KEY_UILaunchScreen_Generation[sdk=iphoneos*]" = YES;
+				"INFOPLIST_KEY_UILaunchScreen_Generation[sdk=iphonesimulator*]" = YES;
+				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphoneos*]" = UIStatusBarStyleDefault;
+				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphonesimulator*]" = UIStatusBarStyleDefault;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.5;
+				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
+				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
+				MACOSX_DEPLOYMENT_TARGET = 14.4;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.yeongdaekim.wonderminute;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = auto;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		BEA2E73E2E3D9872006C4F74 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = wonderminute/wonderminute.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_ASSET_PATHS = "\"wonderminute/Preview Content\"";
+				DEVELOPMENT_TEAM = 9LM3A69TA4;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
+				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
+				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
+				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphonesimulator*]" = YES;
+				"INFOPLIST_KEY_UILaunchScreen_Generation[sdk=iphoneos*]" = YES;
+				"INFOPLIST_KEY_UILaunchScreen_Generation[sdk=iphonesimulator*]" = YES;
+				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphoneos*]" = UIStatusBarStyleDefault;
+				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphonesimulator*]" = UIStatusBarStyleDefault;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.5;
+				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
+				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
+				MACOSX_DEPLOYMENT_TARGET = 14.4;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.yeongdaekim.wonderminute;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = auto;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		BEA2E7402E3D9872006C4F74 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 9LM3A69TA4;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.5;
+				MACOSX_DEPLOYMENT_TARGET = 14.4;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.yeongdaekim.wonderminuteTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = auto;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/wonderminute.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/wonderminute";
+			};
+			name = Debug;
+		};
+		BEA2E7412E3D9872006C4F74 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 9LM3A69TA4;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.5;
+				MACOSX_DEPLOYMENT_TARGET = 14.4;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.yeongdaekim.wonderminuteTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = auto;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/wonderminute.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/wonderminute";
+			};
+			name = Release;
+		};
+		BEA2E7432E3D9872006C4F74 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 9LM3A69TA4;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.5;
+				MACOSX_DEPLOYMENT_TARGET = 14.4;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.yeongdaekim.wonderminuteUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = auto;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = wonderminute;
+			};
+			name = Debug;
+		};
+		BEA2E7442E3D9872006C4F74 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 9LM3A69TA4;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.5;
+				MACOSX_DEPLOYMENT_TARGET = 14.4;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.yeongdaekim.wonderminuteUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = auto;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = wonderminute;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		BEA2E7122E3D9870006C4F74 /* Build configuration list for PBXProject "wonderminute" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				BEA2E73A2E3D9872006C4F74 /* Debug */,
+				BEA2E73B2E3D9872006C4F74 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		BEA2E73C2E3D9872006C4F74 /* Build configuration list for PBXNativeTarget "wonderminute" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				BEA2E73D2E3D9872006C4F74 /* Debug */,
+				BEA2E73E2E3D9872006C4F74 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		BEA2E73F2E3D9872006C4F74 /* Build configuration list for PBXNativeTarget "wonderminuteTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				BEA2E7402E3D9872006C4F74 /* Debug */,
+				BEA2E7412E3D9872006C4F74 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		BEA2E7422E3D9872006C4F74 /* Build configuration list for PBXNativeTarget "wonderminuteUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				BEA2E7432E3D9872006C4F74 /* Debug */,
+				BEA2E7442E3D9872006C4F74 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = BEA2E70F2E3D9870006C4F74 /* Project object */;
+}
