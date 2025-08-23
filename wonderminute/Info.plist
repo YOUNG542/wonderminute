@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleDisplayName</key>
+	<string>원더미닛</string>
+	<key>CFBundleExecutable</key>
+	<string>wonderminute</string>
+	<key>CFBundleIconName</key>
+	<string>AppIcon</string>
+	<key>CFBundleIdentifier</key>
+	<string>com.yeongdaekim.wonderminute</string>
+	<key>CFBundleName</key>
+	<string>wonderminute</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>1.0</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>kakaob8cf7168ac44379964e92c80071dbaf1</string>
+			</array>
+		</dict>
+		 <!-- Firebase Phone Auth (오류 메시지에 나온 스킴 그대로) -->
+  <dict>
+    <key>CFBundleURLSchemes</key>
+    <array>
+      <string>app-1-118546917705-ios-6f7a84a6e9025b189f1298</string>
+    </array>
+  </dict>
+	</array>
+	<key>CFBundleVersion</key>
+	<string>16</string>
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>kakao</string>
+		<string>kakaokompassauth</string>
+		<string>kakaolink</string>
+	</array>
+	<key>NSCameraUsageDescription</key>
+	<string>프로필 사진 촬영 및 일부 기능을 위해 카메라 접근이 필요합니다.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>통화 기능 제공을 위해 마이크 접근이 필요합니다.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>촬영한 사진을 저장하기 위해 사진 보관함에 추가 권한이 필요합니다.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>프로필 사진을 선택하려면 사진 보관함 접근이 필요합니다.</string>
+	<key>UIApplicationSceneManifest</key>
+	<dict>
+		<key>UIApplicationSupportsMultipleScenes</key>
+		<false/>
+	</dict>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>audio</string>
+		<string>voip</string>
+		<string>remote-notification</string>
+	</array>
+	<key>UILaunchScreen</key>
+	<dict>
+		<key>UIColorName</key>
+		<string>LaunchBackground</string>
+		<key>UIImageName</key>
+		<string>LaunchLogo</string>
+	</dict>
+	<key>UILaunchStoryboardName</key>
+	<string>LaunchScreen</string>
+	<key>UISupportedInterfaceOrientations</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+	</array>
+	<key>UISupportedInterfaceOrientations~ipad</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationPortraitUpsideDown</string>
+		<string>UIInterfaceOrientationLandscapeLeft</string>
+		<string>UIInterfaceOrientationLandscapeRight</string>
+	</array>
+</dict>
+</plist>
