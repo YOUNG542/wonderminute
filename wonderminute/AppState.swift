@@ -4,6 +4,8 @@ import FirebaseAuth
 import FirebaseFirestore
 import KakaoSDKUser
 import AuthenticationServices
+import AVFAudio
+import AgoraRtcKit
 
 typealias FirebaseUser = FirebaseAuth.User
 typealias KakaoUser    = KakaoSDKUser.User
@@ -94,7 +96,7 @@ final class AppState: ObservableObject {
     // MARK: - Lifecycle
     init() {
         print("🧠 AppState 초기화됨")
-
+        prewarmForFirstCall()   // ✅ 딱 1번만
         authListener = Auth.auth().addStateDidChangeListener { [weak self] _, user in
             guard let self = self else { return }
 
@@ -288,6 +290,23 @@ final class AppState: ObservableObject {
             FunctionsAPI.cancelMatch()
         }
     }
+    private func prewarmForFirstCall() {
+          // 오디오 세션 경로 내재 캐시
+          DispatchQueue.global(qos: .utility).async {
+              _ = AVAudioSession.sharedInstance().sampleRate
+          }
+          // Agora 엔진 JIT 로딩만 끝내고 즉시 파괴 (실접속 아님)
+          DispatchQueue.global(qos: .utility).async {
+              let tmp = AgoraRtcEngineKit.sharedEngine(withAppId: "eb7e807372f94d8596d271f5bccbd268", delegate: nil)
+              AgoraRtcEngineKit.destroy()
+          }
+          // GCD 타이머 경로 워밍업(미세)
+          let s = DispatchSource.makeTimerSource(queue: DispatchQueue.global(qos: .utility))
+          s.schedule(deadline: .now() + .milliseconds(10))
+          s.setEventHandler {}
+          s.resume()
+          s.cancel()
+      }
 }
 
 

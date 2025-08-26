@@ -135,30 +135,38 @@ final class CallEngine: NSObject, ObservableObject {
 
     // 실제 조인
     private func actuallyJoin(_ j: AgoraJoin) async {
-        if engine != nil { print(CallDiag.tag("⚠️ join() while engine!=nil → leave()")); leave() }
+        // ✅ 엔진이 없을 때만 1회 생성 (있으면 재사용)
+        if engine == nil {
+            print(CallDiag.tag("🟣 prepare engine (cold) appId=\(mask(j.appId))"))
+            let eng = AgoraRtcEngineKit.sharedEngine(withAppId: j.appId, delegate: self)
+            eng.setChannelProfile(.communication)
+            eng.enableAudio()
+            eng.setDefaultAudioRouteToSpeakerphone(true)
+            engine = eng
+        }
+
+        // 🔊 마이크/오디오세션 활성화는 '조인 직전'에만
         configureAudioSession()
 
-        print(CallDiag.tag("🚪 join() appId=\(mask(j.appId)) channel=\(j.channel) tokenLen=\(j.token.count) rtcUid=\(j.rtcUid)"))
-        let eng = AgoraRtcEngineKit.sharedEngine(withAppId: j.appId, delegate: self)
-        engine = eng
-        eng.setChannelProfile(.communication)
-        eng.enableAudio()
-        eng.setDefaultAudioRouteToSpeakerphone(true)
+        guard let eng = engine else { return }
 
+        print(CallDiag.tag("🚪 join() channel=\(j.channel) tokenLen=\(j.token.count) rtcUid=\(j.rtcUid)"))
         currentRoomId = j.channel
+
         let ret = eng.joinChannel(byToken: j.token, channelId: j.channel, info: nil, uid: j.rtcUid) { [weak self] _, _, _ in
             DispatchQueue.main.async { self?.applyMute("join completion") }
         }
         print(CallDiag.tag("🚪 join() returned=\(String(describing: ret))"))
     }
 
+
     func leave() {
         print(CallDiag.tag("🏁 leave() called joined=\(isJoined)"))
         engine?.leaveChannel { stats in
             print(CallDiag.tag("🏁 leaveChannel cb duration=\(stats.duration) tx=\(stats.txKBitrate) rx=\(stats.rxKBitrate)"))
         }
-        AgoraRtcEngineKit.destroy()
-        engine = nil
+       // AgoraRtcEngineKit.destroy()
+       // engine = nil
 
         print(CallDiag.tag("🧹 reset state (joined=false, muted=false, flags cleared)"))
         isJoined = false

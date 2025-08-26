@@ -159,15 +159,16 @@ struct LoginView: View {
                 Spacer(minLength: 20)
             }
 
-            // 로딩
+        
+            // 로딩 (앱 톤에 맞춘 글래스 카드 + 로고 링 스피너)
             if isLoading {
-                Color.black.opacity(0.4).ignoresSafeArea()
-                ProgressView("로그인 중...")
-                    .padding(.vertical, 14)
-                    .padding(.horizontal, 18)
-                    .background(Color.white)
-                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                LoadingOverlay(
+                    title: "로그인 중…",
+                    subtitle: "보안을 위해 App Check와 계정 상태를 확인하는 중입니다"
+                )
+                .transition(.opacity)
             }
+
         }
         .sheet(isPresented: $showPrivacy) {
             NavigationView {
@@ -470,6 +471,76 @@ fileprivate struct LoginAppIconCard: View {
         }
     }
 }
+
+// MARK: - Loading Overlay (글래스 카드 + 로고 링 스피너)
+fileprivate struct LoadingOverlay: View {
+    let title: String
+    let subtitle: String?
+
+    @State private var spin = false
+
+    var body: some View {
+        ZStack {
+            // 배경 딤 + 미세 그레인
+            Color.black.opacity(0.45).ignoresSafeArea()
+
+            VStack(spacing: 14) {
+                // 로고 + 링 스피너
+                ZStack {
+                    Circle()
+                        .fill(Color.white.opacity(0.09))
+                        .frame(width: 74, height: 74)
+
+                    // 회전 링
+                    Circle()
+                        .trim(from: 0.08, to: 0.92)
+                        .stroke(style: StrokeStyle(lineWidth: 3.2, lineCap: .round))
+                        .foregroundColor(.white.opacity(0.95))
+                        .frame(width: 74, height: 74)
+                        .rotationEffect(.degrees(spin ? 360 : 0))
+                        .animation(.linear(duration: 1.05).repeatForever(autoreverses: false), value: spin)
+
+                    // 앱 로고 (있는 경우)
+                    Image("AppLogo")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 36, height: 36)
+                        .shadow(color: .white.opacity(0.25), radius: 6, y: 2)
+                }
+                .padding(.bottom, 2)
+
+                // 타이틀/서브타이틀
+                VStack(spacing: 6) {
+                    Text(title)
+                        .font(.headline.weight(.semibold))
+                        .foregroundColor(.white)
+
+                    if let subtitle, !subtitle.isEmpty {
+                        Text(subtitle)
+                            .font(.footnote)
+                            .foregroundColor(.white.opacity(0.9))
+                            .multilineTextAlignment(.center)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                .padding(.horizontal, 6)
+            }
+            .padding(.vertical, 18)
+            .padding(.horizontal, 20)
+            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .stroke(Color.white.opacity(0.18), lineWidth: 1)
+            )
+            .shadow(color: .black.opacity(0.25), radius: 18, y: 12)
+            .padding(.horizontal, 40)
+            .onAppear { spin = true }
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(Text("\(title)"))
+    }
+}
+
 
 fileprivate struct ConsentNotice: View {
     @Binding var showPrivacy: Bool

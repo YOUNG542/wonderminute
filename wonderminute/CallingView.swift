@@ -4,6 +4,37 @@ import FirebaseFunctions
 import FirebaseFirestore
 import FirebaseAuth
 
+// MARK: - Monotonic elapsed ticker (메인런루프 비의존)
+final class ElapsedTicker {
+    private var timer: DispatchSourceTimer?
+    private let queue = DispatchQueue(label: "wm.elapsed.ticker", qos: .userInteractive)
+    private var startUptime: TimeInterval = 0
+    var onTick: ((Int) -> Void)?
+
+    func start() {
+        stop()
+        startUptime = ProcessInfo.processInfo.systemUptime
+        let t = DispatchSource.makeTimerSource(queue: queue)
+        t.schedule(deadline: .now(), repeating: .milliseconds(250), leeway: .milliseconds(30)) // 첫 틱 즉시
+        t.setEventHandler { [weak self] in
+            guard let self = self else { return }
+            let sec = max(0, Int(ProcessInfo.processInfo.systemUptime - self.startUptime))
+            DispatchQueue.main.async { self.onTick?(sec) }      // UI는 메인에만
+        }
+        timer = t
+        t.resume()
+    }
+
+    func stop() {
+        timer?.setEventHandler {} // 사이클 끊기
+        timer?.cancel()
+        timer = nil
+    }
+
+    deinit { stop() }
+}
+
+
 struct CallingView: View {
     @ObservedObject var call: CallEngine            // ⬅️ StateObject → ObservedObject
     @ObservedObject var watcher: MatchWatcher
@@ -23,184 +54,230 @@ struct CallingView: View {
     @State private var hasJoinedOnce = false
     @State private var resolvedRoomId: String?     // (선택) 폴백 확인용
     @State private var elapsed = 0
-    @State private var elapsedTimer: Timer?
-    
+    @State private var elapsedTicker = ElapsedTicker()
+    @State private var showAvatarPreview = false
+    @State private var previewImageURL: URL? = nil
+    @State private var previewFallbackInitial = "?"
 
     var body: some View {
         ZStack {
-            LinearGradient(
-                colors: [Color.brandPurple, Color.brandIndigo],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            .ignoresSafeArea()
+            GradientBackground()   // ✅ 프로젝트 공통 배경
 
-            VStack(spacing: 18) {
-                Spacer(minLength: 24)
+            // ✅ 내용부 전체 스크롤 (상단 상태 카드 ~ 안내 배너)
+            ScrollView {
+                VStack(spacing: 18) {
+                    Spacer(minLength: 24)
 
-                Text("통화 중")
-                    .font(.title2.bold())
-                    .foregroundColor(.white.opacity(0.95))
-                
-                // ⬇️ 남은 시간 라벨 추가
-                    if let vm = sessionVM {
-                        Text(timeString(from: vm.remaining))
-                            .font(.system(size: 36, weight: .bold))
-                            .foregroundColor(.white)
-                            .padding(.top, 6)
-                    }
-                
-                // ✅ 경과 시간 라벨 (elapsed)
-                Text(String(format: "%02d:%02d", elapsed/60, elapsed%60))
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(.white.opacity(0.9))
-                    .padding(.top, 2)
-
-                if let peer = watcher.peer {
-                    VStack(spacing: 12) {
-                        AvatarView(urlString: peer.photoURL, nickname: peer.nickname)
-                            .frame(width: 96, height: 96)
-                            .overlay(
-                                Circle().strokeBorder(Color.white.opacity(0.25), lineWidth: 1)
-                            )
-                            .shadow(color: .black.opacity(0.25), radius: 12, y: 6)
-
-                        Text(peer.nickname)
-                            .font(.system(size: 22, weight: .semibold))
-                            .foregroundColor(.white)
-
+                    // ✅ 상단 상태 카드
+                    VStack(spacing: 10) {
                         HStack(spacing: 8) {
-                            if let mbti = peer.mbti, !mbti.isEmpty { Chip(mbti) }
-                            if let g = peer.gender, !g.isEmpty { Chip(g) }
+                            Image(systemName: "phone.fill")
+                                .font(.system(size: 16, weight: .bold))
+                            Text("통화 중")
+                        }
+                        .foregroundColor(.white.opacity(0.95))
+
+                        if let vm = sessionVM {
+                            Text(timeString(from: vm.remaining))
+                                .font(.system(.largeTitle, design: .monospaced).weight(.bold))
+                                .foregroundColor(.white)
+                        } else {
+                            ProgressView()
+                                .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                .scaleEffect(1.2)
+                                .padding(.top, 2)
                         }
 
-                        if let ints = peer.interests, !ints.isEmpty {
-                            Text(ints.joined(separator: " • "))
+                        Text(String(format: "경과 %02d:%02d", elapsed/60, elapsed%60))
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 6)
+                            .background(Color.white.opacity(0.16))
+                            .clipShape(Capsule())
+                            .padding(.top, 2)
+                    }
+                    .padding(16)
+                    .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 18, style: .continuous)
+                            .stroke(Color.white.opacity(0.15), lineWidth: 1)
+                    )
+                    .shadow(color: .black.opacity(0.18), radius: 12, y: 8)
+                    .padding(.horizontal)
+
+                    // ✅ 프로필 카드
+                    if let peer = watcher.peer {
+                        VStack(spacing: 12) {
+                            AvatarView(urlString: peer.photoURL, nickname: peer.nickname)
+                                .frame(width: 96, height: 96)
+                                .overlay(
+                                    Circle().strokeBorder(
+                                        LinearGradient(colors: [Color.white.opacity(0.6), .clear],
+                                                       startPoint: .topLeading, endPoint: .bottomTrailing),
+                                        lineWidth: 2
+                                    )
+                                )
+                                .shadow(color: .black.opacity(0.25), radius: 12, y: 6)
+                                .contentShape(Circle())
+                                .onTapGesture {
+                                    if let s = peer.photoURL, let url = URL(string: s) {
+                                        previewImageURL = url
+                                    } else {
+                                        previewImageURL = nil
+                                    }
+                                    let trimmed = peer.nickname.trimmingCharacters(in: .whitespaces)
+                                    previewFallbackInitial = trimmed.isEmpty ? "?" : String(trimmed.prefix(1))
+                                    showAvatarPreview = true
+                                }
+
+                            Text(peer.nickname)
+                                .font(.system(size: 22, weight: .semibold))
+                                .foregroundColor(.white)
+
+                            HStack(spacing: 8) {
+                                if let mbti = peer.mbti, !mbti.isEmpty { Chip(mbti) }
+                                if let g = peer.gender, !g.isEmpty { Chip(g) }
+                            }
+
+                            if let ints = peer.interests, !ints.isEmpty {
+                                Text(ints.joined(separator: " • "))
+                                    .font(.footnote)
+                                    .foregroundColor(.white.opacity(0.8))
+                                    .lineLimit(1)
+                            }
+                        }
+                        .padding(.horizontal, 20)
+                    } else {
+                        ProgressView()
+                            .tint(.white)
+                            .scaleEffect(1.2)
+                            .padding(.top, 8)
+                    }
+
+                    // ✅ 안내 배너 1
+                    HStack(alignment: .top, spacing: 10) {
+                        Image(systemName: "person.wave.2")
+                            .foregroundColor(.white)
+                            .padding(10)
+                            .background(Color.white.opacity(0.16))
+                            .clipShape(Circle())
+
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("안전한 통화 이용 안내")
+                                .font(.footnote.weight(.semibold))
+                                .foregroundColor(.white)
+
+                            Text("• **연락처 요구·외부 링크 유도·부적절한 언행**은 제한될 수 있어요.\n• 앱을 **백그라운드로 전환**하면 통화가 끊길 수 있으니 화면을 켜둔 상태로 이용해 주세요.")
                                 .font(.footnote)
-                                .foregroundColor(.white.opacity(0.8))
-                                .lineLimit(1)
+                                .foregroundColor(.white.opacity(0.95))
+                                .fixedSize(horizontal: false, vertical: true)
                         }
-                        
-                      
+
+                        Spacer(minLength: 0)
                     }
-                    .padding(.horizontal, 20)
-                } else {
-                    ProgressView()
-                        .tint(.white)
-                        .scaleEffect(1.2)
-                        .padding(.top, 8)
-                }
-              
+                    .padding(12)
+                    .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                            .stroke(Color.white.opacity(0.15), lineWidth: 1)
+                    )
+                    .padding(.horizontal)
 
-                Spacer()
+                    // ✅ 안내 배너 2
+                    HStack(alignment: .top, spacing: 10) {
+                        Image(systemName: "timer")
+                            .foregroundColor(.white)
+                            .padding(10)
+                            .background(Color.white.opacity(0.16))
+                            .clipShape(Circle())
 
-                HStack {
-                    Image(systemName: "person.wave.2")
-                        .foregroundColor(.white)
-                        .padding(10)
-                        .background(Color.white.opacity(0.15))
-                        .clipShape(Circle())
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("타이머 표시 안내")
+                                .font(.footnote.weight(.semibold))
+                                .foregroundColor(.white)
 
-                    Text("매너있는 대화를 위해 SNS 요구, 부적절한 언행 시 계정이 정지될 수 있어요.")
-                        .font(.footnote)
-                        .foregroundColor(.white)
-                        .fixedSize(horizontal: false, vertical: true)
-                    Spacer(minLength: 0)
-                }
-                .padding(12)
-                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 16).stroke(Color.white.opacity(0.12), lineWidth: 1)
-                )
-                .padding(.horizontal)
-
-                // 컨트롤 바: 음소거 / 종료
-                HStack(spacing: 16) {
-                    Button { call.toggleMute() } label: {
-                        VStack(spacing: 6) {
-                            Image(systemName: call.muted ? "mic.slash.fill" : "mic.fill")
-                                .font(.system(size: 20, weight: .semibold))
-                            Text(call.muted ? "음소거 해제" : "음소거")
-                                .font(.caption2).fontWeight(.semibold)
+                            Text("일부 기기/상황에서 타이머 숫자가 간헐적으로 늦게 갱신될 수 있어요. 하지만 실제 통화 시간 계산과 자동 종료는 서버 시계와 내부 모노토닉 타이머로 정확히 동작하므로 이용에는 지장이 없습니다.")
+                                .font(.footnote)
+                                .foregroundColor(.white.opacity(0.95))
+                                .fixedSize(horizontal: false, vertical: true)
                         }
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 12)
-                        .background(Color.white.opacity(0.15))
-                        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 14)
-                                .stroke(Color.white.opacity(0.18), lineWidth: 1)
-                        )
-                    }
 
-                    Button {
-                        endTapCount += 1
-                        print("🛎️ End tapped at \(Date()) | endedOnce=\(endedOnce) hasJoinedOnce=\(hasJoinedOnce) isJoined=\(call.isJoined) remoteEnded=\(call.remoteEnded) roomId=\(call.currentRoomId ?? "nil")")
-                            
-                        endCallAndNavigate()
-                    } label: {
-                        VStack(spacing: 6) {
-                            Image(systemName: "phone.down.fill")
-                                .font(.system(size: 20, weight: .semibold))
-                            Text("종료")
-                                .font(.caption2).fontWeight(.semibold)
-                        }
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 12)
-                        .background(Color.red.opacity(0.9))
-                        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                        Spacer(minLength: 0)
                     }
+                    .padding(12)
+                    .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                            .stroke(Color.white.opacity(0.15), lineWidth: 1)
+                    )
+                    .padding(.horizontal)
+
+                    // ⬇️ 하단 컨트롤바와 겹치지 않게 여백
+                    Spacer(minLength: 80)
                 }
-                .padding(.horizontal)
-                .padding(.bottom, 16)
             }
-            // ⬇️ 오버레이는 ZStack의 "형제"로
-                        if let vm = sessionVM, vm.showExtendPrompt {
-                            extendSheet(vm: vm)
-                                .zIndex(1)
-                                .transition(.scale.combined(with: .opacity)) // (선택)
-                                .animation(.spring(), value: vm.showExtendPrompt) // (선택)
-                        }
+
+            // ✅ 연장 시트는 ZStack 안에서만 조건 표시
+            if let vm = sessionVM, vm.showExtendPrompt {
+                extendSheet(vm: vm)
+                    .zIndex(1)
+                    .transition(.scale.combined(with: .opacity))
+                    .animation(.spring(), value: vm.showExtendPrompt)
+            }
         }
+        // ⬇️ 상단 오버레이 고정
+        .overlay(
+            TopBarOverlay()
+                .padding(.horizontal, 14)
+                .padding(.top, 10),
+            alignment: .top
+        )
+        // ⬇️ 하단 컨트롤바 고정
+        .safeAreaInset(edge: .bottom) {
+            ControlBar(
+                muted: call.muted,
+                onToggleMute: { call.toggleMute() },
+                onEnd: {
+                    endTapCount += 1
+                    print("🛎️ End tapped ...")
+                    endCallAndNavigate()
+                }
+            )
+        }
+        // ⬇️ 나머지 라이프사이클/상태 변경 핸들러 유지
         .onAppear {
             print("🟪 [Call] onAppear at \(Date())")
             CallLifecycle.shared.call = call
             startCallHeartbeat()
-            
             watcher.start()
-
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-                ensureSessionVM()
-               
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { ensureSessionVM() }
+        }
+        .fullScreenCover(isPresented: $showAvatarPreview) {
+            AvatarPreviewView(imageURL: previewImageURL, fallbackInitial: previewFallbackInitial) {
+                showAvatarPreview = false
             }
         }
-
-
         .onDisappear {
             print("⬅️ [Call] onDisappear at \(Date()) – cleanup only")
             CallLifecycle.shared.call = nil
             stopCallHeartbeat()
             watcher.stop()
             call.leave()
-            // ❌ FunctionsAPI.cancelMatch()는 여기서 호출하지 않음
+            elapsedTicker.stop()
+            sessionVM = nil
         }
-
         .onChange(of: call.isJoined) { joined in
             print("🔗 [Call] isJoined -> \(joined) at \(Date())")
             if joined {
                 print(CallDiag.tag("⏱️ elapsed start"))
                 hasJoinedOnce = true
                 elapsed = 0
-                elapsedTimer?.invalidate()
-                elapsedTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
-                    elapsed += 1
-                }
+                elapsedTicker.onTick = { sec in elapsed = sec }
+                elapsedTicker.start()
             } else {
                 print(CallDiag.tag("⏱️ elapsed stop"))
-                elapsedTimer?.invalidate()
-                elapsedTimer = nil
+                elapsedTicker.stop()
             }
         }
         .onChange(of: call.remoteEnded) { ended in
@@ -211,7 +288,6 @@ struct CallingView: View {
             print("🧷 [Call] sessionVM.isEnding -> \(ending) at \(Date()) (hasJoinedOnce=\(hasJoinedOnce))")
             if ending, hasJoinedOnce { endCallAndNavigate() }
         }
-
     }
 
     // MARK: - Helpers
@@ -251,10 +327,12 @@ struct CallingView: View {
 
     private func startCallHeartbeat() {
         stopCallHeartbeat()
-        FunctionsAPI.heartbeat() // 즉시 1회
-        callHbTimer = Timer.scheduledTimer(withTimeInterval: 7, repeats: true) { _ in
+        FunctionsAPI.heartbeat()
+        let t = Timer(timeInterval: 7, repeats: true) { _ in
             FunctionsAPI.heartbeat()
         }
+        callHbTimer = t
+        RunLoop.main.add(t, forMode: .common)   // ✅ 변경
     }
 
     private func stopCallHeartbeat() {
@@ -317,30 +395,45 @@ struct CallingView: View {
     // ⬇️ 파일 맨 아래 Helpers 근처에 추가
 
     private func extendSheet(vm: CallSessionVM) -> some View {
-        VStack(spacing: 14) {
-            Text("통화 시간이 1분 밖에 남지 않았습니다!\n연장하시겠어요??")
+        VStack(spacing: 16) {
+            Text("통화 종료까지 1분 남았어요.\n연장하시겠어요?")
                 .multilineTextAlignment(.center)
-                .font(.headline)
+                .font(.headline.weight(.semibold))
                 .foregroundColor(.white)
 
             HStack(spacing: 12) {
-                Button("7분 연장") { vm.extend(by: 420) }
-                    .frame(maxWidth: .infinity).padding()
-                    .background(Color.white.opacity(0.15))
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
-                Button("10분 연장") { vm.extend(by: 600) }
-                    .frame(maxWidth: .infinity).padding()
-                    .background(Color.white.opacity(0.15))
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                Button(action: { vm.extend(by: 420) }) {
+                    Text("7분 연장")
+                        .font(.callout.bold())
+                        .frame(maxWidth: .infinity).padding(.vertical, 12)
+                }
+                .background(Color.white.opacity(0.16))
+                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.white.opacity(0.18), lineWidth: 1))
+
+                Button(action: { vm.extend(by: 600) }) {
+                    Text("10분 연장")
+                        .font(.callout.bold())
+                        .frame(maxWidth: .infinity).padding(.vertical, 12)
+                }
+                .background(Color.white.opacity(0.16))
+                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.white.opacity(0.18), lineWidth: 1))
             }
 
-            Button("이번엔 종료할게요") { vm.showExtendPrompt = false }
-                .foregroundColor(.white.opacity(0.85))
+            Button("이번엔 종료할게요") {
+                vm.showExtendPrompt = false
+            }
+            .font(.footnote.weight(.semibold))
+            .foregroundColor(.white.opacity(0.9))
+            .padding(.top, 2)
         }
-        .padding()
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16))
+        .padding(18)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 18).stroke(Color.white.opacity(0.12), lineWidth: 1))
         .padding(24)
     }
+
 
     private func timeString(from seconds: Int) -> String {
         let m = seconds / 60
@@ -374,6 +467,252 @@ struct CallingView: View {
             }
 
     }
+    
+    // MARK: - Top overlay (좌: 미닛 / 우: 신고·차단)
+    private struct TopBarOverlay: View {
+        var body: some View {
+            HStack {
+                // 좌측: 남아있는 미닛 배지
+                MinuteBadgeCompact(count: 0)   // TODO: 실제 보유 미닛 숫자 바인딩
+
+                Spacer()
+
+                // 우측: 신고 / 차단 (동작은 나중에)
+                HStack(spacing: 10) {
+                    Button(action: {
+                        // TODO: 신고 기능 연결
+                    }) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "exclamationmark.bubble.fill")
+                                .font(.system(size: 13, weight: .bold))
+                            Text("신고")
+                                .font(.system(size: 13, weight: .semibold))
+                        }
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 8)
+                        .background(.ultraThinMaterial, in: Capsule())
+                        .overlay(Capsule().stroke(.white.opacity(0.22), lineWidth: 1))
+                        .shadow(color: .black.opacity(0.20), radius: 10, y: 6)
+                    }
+                    .buttonStyle(.plain)
+
+                    Button(action: {
+                        // TODO: 차단 기능 연결
+                    }) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "hand.raised.fill")
+                                .font(.system(size: 13, weight: .bold))
+                            Text("차단")
+                                .font(.system(size: 13, weight: .semibold))
+                        }
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 8)
+                        .background(.ultraThinMaterial, in: Capsule())
+                        .overlay(Capsule().stroke(.white.opacity(0.22), lineWidth: 1))
+                        .shadow(color: .black.opacity(0.20), radius: 10, y: 6)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+        }
+    }
+
+    // MARK: - 남아있는 미닛 배지(우측 상단 배지와 톤 통일)
+    private struct MinuteBadgeCompact: View {
+        let count: Int
+        var body: some View {
+            HStack(spacing: 6) {
+                Image("WMPhoneDot")
+                    .renderingMode(.template)
+                    .resizable().scaledToFit()
+                    .frame(width: 18, height: 18)
+                    .foregroundColor(.white)
+                Text("\(count)")
+                    .font(.system(size: 14, weight: .semibold, design: .rounded))
+                    .foregroundColor(.white.opacity(0.95))
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background(.ultraThinMaterial, in: Capsule())
+            .overlay(Capsule().stroke(.white.opacity(0.22), lineWidth: 1))
+            .shadow(color: .black.opacity(0.25), radius: 10, y: 6)
+            .contentShape(Rectangle())
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("남아있는 미닛 \(count)")
+        }
+    }
+
+// MARK: - 하단 고정 컨트롤바
+private struct ControlBar: View {
+    let muted: Bool
+    let onToggleMute: () -> Void
+    let onEnd: () -> Void
+
+    var body: some View {
+        HStack(spacing: 16) {
+            Button(action: onToggleMute) {
+                VStack(spacing: 6) {
+                    Image(systemName: muted ? "mic.slash.fill" : "mic.fill")
+                        .font(.system(size: 20, weight: .semibold))
+                    Text(muted ? "음소거 해제" : "음소거")
+                        .font(.caption2).fontWeight(.semibold)
+                }
+                .foregroundColor(.white)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 12)
+                .background(Color.white.opacity(0.15))
+                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .stroke(Color.white.opacity(0.25), lineWidth: 1)
+                )
+                .shadow(color: .black.opacity(0.18), radius: 10, y: 6)
+            }
+
+            Button(action: onEnd) {
+                VStack(spacing: 6) {
+                    Image(systemName: "phone.down.fill")
+                        .font(.system(size: 20, weight: .semibold))
+                    Text("종료")
+                        .font(.caption2).fontWeight(.semibold)
+                }
+                .foregroundColor(.white)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 12)
+                .background(Color.red.opacity(0.92))
+                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .stroke(Color.white.opacity(0.15), lineWidth: 1)
+                )
+                .shadow(color: .black.opacity(0.22), radius: 12, y: 8)
+            }
+        }
+        .padding(.horizontal)
+        .padding(.top, 8)
+        .padding(.bottom, 12)
+        .background( // 뒷배경 살짝 블러/그라데이션 느낌 유지
+            Color.black.opacity(0.001) // 터치영역 유지용
+                .background(.ultraThinMaterial)
+                .ignoresSafeArea(edges: .bottom)
+        )
+    }
+}
+
+    
+    // MARK: - Avatar Fullscreen Preview (핀치줌/더블탭/닫기)
+    private struct AvatarPreviewView: View {
+        let imageURL: URL?
+        let fallbackInitial: String
+        let onClose: () -> Void
+
+        @Environment(\.dismiss) private var dismiss
+        @State private var scale: CGFloat = 1.0
+        @State private var lastScale: CGFloat = 1.0
+        @State private var offset: CGSize = .zero
+        @State private var lastOffset: CGSize = .zero
+
+        var body: some View {
+            ZStack {
+                Color.black.ignoresSafeArea()
+
+                Group {
+                    if let url = imageURL {
+                        AsyncImage(url: url) { phase in
+                            switch phase {
+                            case .success(let img):
+                                img
+                                    .resizable()
+                                    .scaledToFit()
+                            default:
+                                placeholder
+                            }
+                        }
+                    } else {
+                        placeholder
+                    }
+                }
+                .scaleEffect(scale)
+                .offset(offset)
+                .gesture(
+                    MagnificationGesture()
+                        .onChanged { value in
+                            // 자연스러운 확대 범위(1x ~ 5x)
+                            scale = min(max(1.0, lastScale * value), 5.0)
+                        }
+                        .onEnded { _ in
+                            lastScale = scale
+                        }
+                )
+                .gesture(
+                    DragGesture()
+                        .onChanged { g in
+                            // 확대 상태에서만 패닝 허용
+                            guard scale > 1.0 else { return }
+                            offset = CGSize(width: lastOffset.width + g.translation.width,
+                                            height: lastOffset.height + g.translation.height)
+                        }
+                        .onEnded { _ in
+                            lastOffset = offset
+                        }
+                )
+                .onTapGesture(count: 2) {
+                    // 더블탭 줌 토글
+                    if scale > 1.0 {
+                        withAnimation(.spring()) {
+                            scale = 1.0
+                            lastScale = 1.0
+                            offset = .zero
+                            lastOffset = .zero
+                        }
+                    } else {
+                        withAnimation(.spring()) {
+                            scale = 2.0
+                            lastScale = 2.0
+                        }
+                    }
+                }
+
+                // 상단 닫기 버튼
+                VStack {
+                    HStack {
+                        Button {
+                            if let _ = try? dismiss() {
+                                // no-op
+                            }
+                            onClose()
+                        } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .font(.system(size: 28, weight: .bold))
+                                .foregroundColor(.white.opacity(0.95))
+                                .shadow(radius: 6, y: 2)
+                        }
+                        .padding(.leading, 20)
+                        .padding(.top, 14)
+
+                        Spacer()
+                    }
+                    Spacer()
+                }
+            }
+        }
+
+        @ViewBuilder
+        private var placeholder: some View {
+            ZStack {
+                Color.gray.opacity(0.15)
+                Text(fallbackInitial)
+                    .font(.system(size: 120, weight: .bold))
+                    .foregroundColor(.white.opacity(0.85))
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .clipped()
+        }
+    }
+
+
 
     
 }
