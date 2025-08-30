@@ -92,16 +92,30 @@ final class AppState: ObservableObject {
         isBootLoading = false
         isReadyForQueue = false
     }
+    
+    @MainActor
+    func goToWelcome(reason: String = "force to welcome") {
+        // 내비게이션 스택/상태를 먼저 정리
+        path.removeAll()
+        isBootLoading = false
+        isReadyForQueue = false
+
+        // 최종 목적지: Welcome
+        setView(.welcome, reason: reason)
+    }
+
 
     // MARK: - Lifecycle
     init() {
         print("🧠 AppState 초기화됨")
         prewarmForFirstCall()   // ✅ 딱 1번만
+        SafetyCenter.shared.loadBlockedUids()
         authListener = Auth.auth().addStateDidChangeListener { [weak self] _, user in
             guard let self = self else { return }
 
             if let user = user {
                 self.ensureUserDocAndMarkReady(user: user)
+                SafetyCenter.shared.loadBlockedUids()
                 self.checkLoginStatus()
             } else {
                 self.stopProfileListener()

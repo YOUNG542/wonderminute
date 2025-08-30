@@ -58,7 +58,9 @@ struct CallingView: View {
     @State private var showAvatarPreview = false
     @State private var previewImageURL: URL? = nil
     @State private var previewFallbackInitial = "?"
-
+    @State private var showReportSheet = false
+    @State private var showBlockSheet  = false
+    
     var body: some View {
         ZStack {
             GradientBackground()   // ✅ 프로젝트 공통 배경
@@ -121,15 +123,12 @@ struct CallingView: View {
                                 .shadow(color: .black.opacity(0.25), radius: 12, y: 6)
                                 .contentShape(Circle())
                                 .onTapGesture {
-                                    if let s = peer.photoURL, let url = URL(string: s) {
-                                        previewImageURL = url
-                                    } else {
-                                        previewImageURL = nil
-                                    }
+                                    previewImageURL = resolvePreviewURL(peer.photoURL)   // ✅ 동일한 정리 로직 재사용
                                     let trimmed = peer.nickname.trimmingCharacters(in: .whitespaces)
                                     previewFallbackInitial = trimmed.isEmpty ? "?" : String(trimmed.prefix(1))
                                     showAvatarPreview = true
                                 }
+
 
                             Text(peer.nickname)
                                 .font(.system(size: 22, weight: .semibold))
@@ -228,11 +227,15 @@ struct CallingView: View {
         }
         // ⬇️ 상단 오버레이 고정
         .overlay(
-            TopBarOverlay()
-                .padding(.horizontal, 14)
-                .padding(.top, 10),
+            TopBarOverlay(
+                onReport: { showReportSheet = true },
+                onBlock:  { showBlockSheet  = true }
+            )
+            .padding(.horizontal, 14)
+            .padding(.top, 10),
             alignment: .top
         )
+
         // ⬇️ 하단 컨트롤바 고정
         .safeAreaInset(edge: .bottom) {
             ControlBar(
@@ -258,6 +261,32 @@ struct CallingView: View {
                 showAvatarPreview = false
             }
         }
+        // ⬇️ ZStack 바깥 modifier들 끝나기 전에 시트 두 개 추가
+        .sheet(isPresented: $showReportSheet) {
+            if let peer = watcher.peer {
+                ReportSheetView(
+                    peerUid: peer.id,
+                    peerNickname: peer.nickname,
+                    roomId: resolvedRoomId ?? call.currentRoomId,
+                    callElapsedSec: elapsed
+                ) {
+                    print("✅ 신고 제출 완료")
+                }
+            }
+        }
+
+        .sheet(isPresented: $showBlockSheet) {
+            if let peer = watcher.peer {
+                BlockSheetView(
+                    peerUid: peer.id,
+                    peerNickname: peer.nickname
+                ) { endNow in
+                    // 차단 완료 → 즉시 종료 선택 시 끝내기
+                    if endNow { endCallAndNavigate() }
+                }
+            }
+        }
+
         .onDisappear {
             print("⬅️ [Call] onDisappear at \(Date()) – cleanup only")
             CallLifecycle.shared.call = nil
@@ -345,16 +374,44 @@ struct CallingView: View {
         let urlString: String?
         let nickname: String
 
+        // body 바깥 계산 프로퍼티
+        private var resolvedURL: URL? {
+            resolveURL(from: urlString)
+        }
+
         var body: some View {
             Group {
-                if let urlString, let url = URL(string: urlString) {
-                    AsyncImage(url: url) { phase in
+                if let resolved = resolvedURL {
+                    AsyncImage(url: resolved) { phase in
                         switch phase {
-                        case .success(let img): img.resizable().scaledToFill()
-                        default: Placeholder()
+                        case .success(let img):
+                            img.resizable().scaledToFill()
+                                .onAppear {
+                                    print("🖼️ Avatar success | url=\(resolved.absoluteString)")
+                                }
+
+                        case .failure(let error):
+                            Placeholder()
+                                .onAppear {
+                                    print("🖼️ Avatar FAILURE | url=\(resolved.absoluteString) | error=\(String(describing: error))")
+                                    Task {
+                                        await probeHTTP(resolved)
+                                    }
+                                }
+
+                        case .empty:
+                            ProgressView()
+                                .onAppear {
+                                    print("🖼️ Avatar loading... | url=\(resolved.absoluteString)")
+                                }
+
                         }
                     }
+                    .onAppear {
+                        print("🔎 Avatar onAppear | nickname=\(nickname)")
+                    }
                 } else {
+                    // URL 해석 실패(로그는 resolveURL 내부에서 이미 출력)
                     Placeholder()
                 }
             }
@@ -363,6 +420,70 @@ struct CallingView: View {
             .shadow(radius: 2, y: 1)
         }
 
+        // MARK: - 진단: URL 해석 & 사전 검증
+        private func resolveURL(from raw: String?) -> URL? {
+            guard let raw else {
+                print("❗ Avatar URL nil (no photoURL) | nickname=\(nickname)")
+                return nil
+            }
+            let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmed.isEmpty else {
+                print("❗ Avatar URL empty string | nickname=\(nickname)")
+                return nil
+            }
+
+            if trimmed.hasPrefix("gs://") {
+                print("⚠️ Avatar URL uses gs:// (Firebase Storage) — not directly downloadable. Use downloadURL(). | url=\(trimmed)")
+            }
+
+            let sanitized = sanitizeURLString(trimmed)
+            guard let url = URL(string: sanitized) else {
+                print("❗ Avatar URL init failed | raw=\(trimmed) | sanitized=\(sanitized)")
+                return nil
+            }
+
+            if url.scheme?.lowercased() == "http" {
+                print("⚠️ Avatar URL is http (ATS may block). Consider https or NSAppTransportSecurity exceptions. | url=\(url)")
+            }
+
+            print("✅ Avatar resolved URL | raw=\(trimmed) | sanitized=\(sanitized)")
+            return url
+        }
+
+        // 퍼센트 인코딩 보정
+        private func sanitizeURLString(_ s: String) -> String {
+            if URL(string: s) != nil { return s }
+            if let comps = URLComponents(string: s), let rebuilt = comps.url?.absoluteString {
+                return rebuilt
+            }
+            let allowed = CharacterSet.urlFragmentAllowed
+                .union(.urlHostAllowed)
+                .union(.urlPathAllowed)
+                .union(.urlQueryAllowed)
+                .union(.urlUserAllowed)
+            return s.addingPercentEncoding(withAllowedCharacters: allowed) ?? s
+        }
+
+        // MARK: - 실패 시 HTTP 상태/리다이렉트 진단
+        private func probeHTTP(_ url: URL) async {
+            do {
+                var req = URLRequest(url: url, timeoutInterval: 10)
+                req.httpMethod = "HEAD"
+                let (_, resp) = try await URLSession.shared.data(for: req)
+                if let http = resp as? HTTPURLResponse {
+                    print("🛰️ Avatar HEAD | status=\(http.statusCode) | url=\(url)")
+                    if let finalURL = http.url, finalURL != url {
+                        print("↪️ Avatar redirected to | \(finalURL.absoluteString)")
+                    }
+                } else {
+                    print("🛰️ Avatar HEAD | non-HTTP response | url=\(url)")
+                }
+            } catch {
+                print("💥 Avatar HEAD error | \(error) | url=\(url)")
+            }
+        }
+
+        // MARK: - UI
         @ViewBuilder
         private func Placeholder() -> some View {
             ZStack {
@@ -378,6 +499,8 @@ struct CallingView: View {
             return trimmed.isEmpty ? "?" : String(trimmed.prefix(1))
         }
     }
+
+
 
     private struct Chip: View {
         let text: String
@@ -470,45 +593,35 @@ struct CallingView: View {
     
     // MARK: - Top overlay (좌: 미닛 / 우: 신고·차단)
     private struct TopBarOverlay: View {
+        let onReport: () -> Void
+        let onBlock:  () -> Void
+
         var body: some View {
             HStack {
-                // 좌측: 남아있는 미닛 배지
-                MinuteBadgeCompact(count: 0)   // TODO: 실제 보유 미닛 숫자 바인딩
-
+                MinuteBadgeCompact(count: 0)
                 Spacer()
 
-                // 우측: 신고 / 차단 (동작은 나중에)
                 HStack(spacing: 10) {
-                    Button(action: {
-                        // TODO: 신고 기능 연결
-                    }) {
+                    Button(action: { onReport() }) {
                         HStack(spacing: 6) {
-                            Image(systemName: "exclamationmark.bubble.fill")
-                                .font(.system(size: 13, weight: .bold))
-                            Text("신고")
-                                .font(.system(size: 13, weight: .semibold))
+                            Image(systemName: "exclamationmark.bubble.fill").font(.system(size: 13, weight: .bold))
+                            Text("신고").font(.system(size: 13, weight: .semibold))
                         }
                         .foregroundColor(.white)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 8)
+                        .padding(.horizontal, 10).padding(.vertical, 8)
                         .background(.ultraThinMaterial, in: Capsule())
                         .overlay(Capsule().stroke(.white.opacity(0.22), lineWidth: 1))
                         .shadow(color: .black.opacity(0.20), radius: 10, y: 6)
                     }
                     .buttonStyle(.plain)
 
-                    Button(action: {
-                        // TODO: 차단 기능 연결
-                    }) {
+                    Button(action: { onBlock() }) {
                         HStack(spacing: 6) {
-                            Image(systemName: "hand.raised.fill")
-                                .font(.system(size: 13, weight: .bold))
-                            Text("차단")
-                                .font(.system(size: 13, weight: .semibold))
+                            Image(systemName: "hand.raised.fill").font(.system(size: 13, weight: .bold))
+                            Text("차단").font(.system(size: 13, weight: .semibold))
                         }
                         .foregroundColor(.white)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 8)
+                        .padding(.horizontal, 10).padding(.vertical, 8)
                         .background(.ultraThinMaterial, in: Capsule())
                         .overlay(Capsule().stroke(.white.opacity(0.22), lineWidth: 1))
                         .shadow(color: .black.opacity(0.20), radius: 10, y: 6)
@@ -626,10 +739,20 @@ private struct ControlBar: View {
                                 img
                                     .resizable()
                                     .scaledToFit()
-                            default:
+
+                            case .empty:   // ⬅️ 로딩 중
+                                ProgressView()
+                                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                    .scaleEffect(1.5)
+
+                            case .failure:
+                                placeholder
+
+                            @unknown default:
                                 placeholder
                             }
                         }
+
                     } else {
                         placeholder
                     }
@@ -710,6 +833,40 @@ private struct ControlBar: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .clipped()
         }
+    }
+
+    // 프리뷰용 URL 정리(퍼센트 인코딩/URLComponents 재조립 포함)
+    private func resolvePreviewURL(_ raw: String?) -> URL? {
+        guard let raw else {
+            print("❗Preview URL nil")
+            return nil
+        }
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        // 1차: 그대로 시도
+        if let u = URL(string: trimmed) {
+            print("✅ Preview URL direct | \(trimmed)")
+            return u
+        }
+        // 2차: URLComponents 재조립
+        if let comps = URLComponents(string: trimmed), let u = comps.url {
+            print("✅ Preview URL via URLComponents | \(u.absoluteString)")
+            return u
+        }
+        // 3차: 퍼센트 인코딩
+        let allowed = CharacterSet.urlFragmentAllowed
+            .union(.urlHostAllowed)
+            .union(.urlPathAllowed)
+            .union(.urlQueryAllowed)
+            .union(.urlUserAllowed)
+        if let enc = trimmed.addingPercentEncoding(withAllowedCharacters: allowed),
+           let u = URL(string: enc) {
+            print("✅ Preview URL percent-encoded | raw=\(trimmed) | enc=\(enc)")
+            return u
+        }
+
+        print("❗Preview URL build failed | raw=\(trimmed)")
+        return nil
     }
 
 

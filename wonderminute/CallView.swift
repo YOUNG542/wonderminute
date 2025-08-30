@@ -82,23 +82,20 @@ struct CallView: View {
                     
                     // CTA 버튼
                     Button(action: {
-                        // ✅ 매칭 요청 의도 표시 (EnvironmentObject 사용)
                         appState.userRequestedMatching = true
-
                         requestMicPermission { granted in
-                            guard granted else {
-                                print("❌ Mic permission denied")
-                                return
-                            }
-                            // ✅ 이미 방이 생겨 있으면 MatchingView로 가지 않음
-                            if call.currentRoomId == nil {
-                                savePreferenceThenGo()
-                            } else {
-                                print("ℹ️ Already have roomId → skip MatchingView")
-                                isMatching = false
+                            guard granted else { return }
+                            // ⬇️ 매칭 시작 전에, 내가 차단한 UID 목록을 큐에 퍼블리시
+                            SafetyCenter.shared.publishExclusionsForMatching { _ in
+                                if call.currentRoomId == nil {
+                                    savePreferenceThenGo()
+                                } else {
+                                    isMatching = false
+                                }
                             }
                         }
-                    }) {
+                    })
+ {
                         Text("통화 시작하기")
                     }
                     .buttonStyle(CallCTAPillStyle())

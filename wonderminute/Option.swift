@@ -2,6 +2,9 @@ import SwiftUI
 import FirebaseAuth
 import FirebaseFirestore
 import FirebaseStorage
+import FirebaseFunctions
+
+
 
 struct OptionView: View {
     @EnvironmentObject var appState: AppState
@@ -21,23 +24,48 @@ struct OptionView: View {
             GradientBackground().ignoresSafeArea()
             
             List {
-                Section(header: Text("계정")) {
-                    NavigationLink("프로필 미리보기") { ProfilePreviewStub() }
-                }
-                
-                Section(header: Text("알림")) {
-                    Toggle("푸시 알림", isOn: $notifyOn)
-                    Toggle("마케팅 동의", isOn: $marketingOn)
-                }
-                
+                // MARK: - 고객센터
                 Section(header: Text("고객센터")) {
-                    NavigationLink("도움말 / 문의") { HelpStub() }
+                    NavigationLink("자주 묻는 질문(FAQ)") { FAQView() }
+                    NavigationLink("실시간 상담 서비스") { LiveSupportIntroView() }
+                    NavigationLink("질문 게시판") { QABoardStub() }
                 }
                 
-                Section(header: Text("약관")) {
-                    NavigationLink("오픈소스 라이선스") { LicensesStub() }
+                // ✅ 상담자 전용 진입 버튼 (너 계정일 때만 노출)
+                Section(header: Text("상담자 전용")) {
+                    if Auth.auth().currentUser?.uid == COUNSELOR_UID {
+                        // 인박스 → 개별 채팅으로 이동하는 구조
+                        NavigationLink("상담 인박스 열기") { CounselorInboxView() }
+                        // 필요 시 바로 특정 유저와의 채팅으로 들어가고 싶으면 아래 라인을 사용
+                        // NavigationLink("상담 채팅 바로가기") { CounselorChatView(userId: "<특정 userId>") }
+                    } else {
+                        Text("권한이 없습니다").foregroundStyle(.secondary)
+                    }
+                }
+                // ✅ 상담자 전용 진입 버튼 (너 계정일 때만 노출)
+                Section(header: Text("상담자 전용")) {
+                    if Auth.auth().currentUser?.uid == COUNSELOR_UID {
+                        NavigationLink("상담 인박스 열기") { CounselorInboxView() }
+                        // ⬇️ 추가
+                        NavigationLink("신고된 유저들 모니터링") { ReportedUsersMonitorView() }
+                    } else {
+                        Text("권한이 없습니다").foregroundStyle(.secondary)
+                    }
+                }
+
+                
+                // MARK: - 커뮤니티 & 약관
+                Section(header: Text("정책/약관")) {
+                    NavigationLink("커뮤니티 가이드라인") { CommunityGuidelinesView() }
+                    NavigationLink("이용약관") { TermsOfServiceView() }
+                    NavigationLink("개인정보 처리방침") { PrivacyPolicyView() }
                 }
                 
+                // ✅ 차단 관리 진입
+                Section(header: Text("안전/차단")) {
+                    NavigationLink("차단된 사용자 관리") { BlockedUsersView() }
+                }
+                // MARK: - 세션
                 Section {
                     Button(role: .destructive) {
                         Task { @MainActor in
@@ -50,6 +78,10 @@ struct OptionView: View {
                         showDeleteConfirm = true
                     } label: { Text("계정 삭제") }
                 }
+            }
+            .onAppear {
+                // 로그인 상태일 때 한 번 캐시 로드
+                SafetyCenter.shared.loadBlockedUids()
             }
             .scrollContentBackground(.hidden)
             .listStyle(.insetGrouped)
@@ -66,7 +98,6 @@ struct OptionView: View {
                isPresented: $showDeleteConfirm) {
             Button("취소", role: .cancel) { }
             Button("삭제", role: .destructive) {
-                // 최종 확인으로 한 단계 더
                 showDeleteConfirmFinal = true
             }
         } message: {
@@ -89,91 +120,252 @@ struct OptionView: View {
         } message: { Text(errorMessage ?? "") }
     }
     
-    // MARK: - 계정 삭제 로직
+    // MARK: - 계정 삭제
     private func deleteAccount() async {
-        guard let user = Auth.auth().currentUser else { errorMessage = "로그인 상태가 아닙니다."; return }
-        let uid = user.uid
-        let db = Firestore.firestore()
-        let storage = Storage.storage()
-        
         await MainActor.run { isWorking = true }
+        defer { Task { @MainActor in isWorking = false } }
+        
         do {
-            // 0) 프로필 URL 읽기 (있으면 이후 삭제에 사용)
-            let userDoc = try await db.collection("users").document(uid).getDocument(source: .server)
-            let urlString = userDoc.data()?["profileImageUrl"] as? String
-            
-            // 1) Firestore 문서 삭제
-            try await db.collection("users").document(uid).delete()
-            
-            // 2) Storage 파일 삭제 (URL 기준)
-            if let urlString, let ref = try? storage.reference(forURL: urlString) {
-                try? await ref.delete()
-            }
-            
-            // 3) Auth 유저 삭제
-            try await user.delete()
-            
+            let _ = try await Functions.functions().httpsCallable("deleteSelf").call([:])
             await MainActor.run {
-                isWorking = false
                 appState.logout()
+                navigateToWelcome()
+                dismiss()
             }
         } catch {
-            let ns = error as NSError
-            if ns.code == AuthErrorCode.requiresRecentLogin.rawValue {
+            await MainActor.run {
+                self.errorMessage = "계정 삭제에 실패했습니다: \(error.localizedDescription)"
+            }
+        }
+    }
+    
+    // 고객센터 - FAQ
+    private struct FAQView: View {
+        @State private var searchText = ""
+        var body: some View {
+            ZStack {
+                GradientBackground().ignoresSafeArea()
+                VStack(spacing: 12) {
+                    TextField("검색어를 입력하세요", text: $searchText)
+                        .textFieldStyle(.roundedBorder)
+                        .padding(.horizontal)
+                    
+                    List {
+                        FAQItem(q: "통화는 어떻게 시작하나요?",
+                                a: "매칭 후 입장 버튼을 누르면 자동으로 연결됩니다. 연결 전 네트워크 상태를 확인해 주세요.")
+                        FAQItem(q: "상대방이 들리지 않아요",
+                                a: "마이크 권한/음량을 확인하고, 이어폰/스피커를 바꿔보세요. 그래도 안 되면 앱을 재시작해 주세요.")
+                        FAQItem(q: "신고/차단은 어떻게 하나요?",
+                                a: "프로필/채팅 화면의 ••• 메뉴에서 신고/차단을 선택할 수 있습니다.")
+                        FAQItem(q: "결제 및 환불 규정",
+                                a: "초기 30초 유예 후 과금이 시작됩니다. 정책에 따라 환불이 제한될 수 있습니다. (자세한 내용은 ‘이용약관’ 참조)")
+                    }
+                    .listStyle(.insetGrouped)
+                }
+                .navigationTitle("FAQ")
+                .navigationBarTitleDisplayMode(.inline)
+            }
+        }
+        
+        private struct FAQItem: View {
+            let q: String
+            let a: String
+            @State private var open = false
+            var body: some View {
+                DisclosureGroup(isExpanded: $open) {
+                    Text(a).font(.subheadline).foregroundStyle(.secondary)
+                } label: {
+                    Text("Q. \(q)").font(.body)
+                }
+            }
+        }
+    }
+    
+    // 고객센터 - 질문 게시판 (틀)
+    private struct QABoardStub: View {
+        var body: some View {
+            ZStack {
+                GradientBackground().ignoresSafeArea()
+                VStack(spacing: 12) {
+                    Text("질문 게시판 (준비중)")
+                        .font(.headline)
+                        .padding(.top, 8)
+                    List {
+                        Text("• 게시판 목록/작성/댓글 기능은 추후 업데이트됩니다.")
+                        Text("• 우선 FAQ를 확인해 주세요. 해결되지 않으면 실시간 상담을 이용해주세요.")
+                    }
+                    .listStyle(.insetGrouped)
+                }
+                .navigationTitle("질문 게시판")
+                .navigationBarTitleDisplayMode(.inline)
+            }
+        }
+    }
+    
+    // 커뮤니티 가이드라인 (틀)
+    private struct CommunityGuidelinesView: View {
+        var body: some View {
+            PolicyScaffold(
+                title: "커뮤니티 가이드라인",
+                markdown: """
+                # 커뮤니티 가이드라인 (초안)
+                ...
+                """
+            )
+        }
+    }
+    
+    // 이용약관 (틀)
+    private struct TermsOfServiceView: View {
+        var body: some View {
+            PolicyScaffold(
+                title: "이용약관",
+                markdown: """
+                # 이용약관 (초안)
+                ...
+                """
+            )
+        }
+    }
+    
+    // 개인정보 처리방침 (틀)
+    private struct PrivacyPolicyView: View {
+        var body: some View {
+            PolicyScaffold(
+                title: "개인정보 처리방침",
+                markdown: """
+                # 개인정보 처리방침 (초안)
+                ...
+                """
+            )
+        }
+    }
+    
+    // 공통 정책 스캐폴드
+    private struct PolicyScaffold: View {
+        let title: String
+        let markdown: String
+        var body: some View {
+            ZStack {
+                GradientBackground().ignoresSafeArea()
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 16) {
+                        Text(title).font(.title2).bold().padding(.top, 8)
+                        Text(.init(markdown)).font(.callout).tint(.primary).lineSpacing(4)
+                    }
+                    .padding(.horizontal)
+                    .padding(.bottom, 24)
+                }
+                .navigationBarTitleDisplayMode(.inline)
+            }
+        }
+    }
+    
+    @MainActor
+    private func navigateToWelcome() {
+        appState.goToWelcome(reason: "account deleted")
+    }
+    private struct BlockedUsersView: View {
+        @ObservedObject private var safety = SafetyCenter.shared
+
+        @State private var rows: [UserRow] = []
+        @State private var isLoading = true
+        @State private var error: String?
+
+        var body: some View {
+            List {
+                if isLoading { ProgressView("불러오는 중…") }
+                if let error { Text(error).foregroundStyle(.red) }
+
+                if rows.isEmpty && !isLoading && error == nil {
+                    Text("차단한 사용자가 없습니다.")
+                        .foregroundStyle(.secondary)
+                }
+
+                ForEach(rows) { row in
+                    HStack(spacing: 12) {
+                        // 가벼운 아바타(이름 이니셜)
+                        Circle().fill(Color.gray.opacity(0.15))
+                            .frame(width: 36, height: 36)
+                            .overlay(Text(row.initial).font(.headline))
+
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(row.nickname.isEmpty ? row.uid : row.nickname)
+                                .font(.body.weight(.semibold))
+                            if !row.nickname.isEmpty {
+                                Text(row.uid).font(.caption2).foregroundStyle(.secondary)
+                            }
+                        }
+                        Spacer()
+                    }
+                    .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                        Button(role: .destructive) {
+                            unblock(row.uid)
+                        } label: {
+                            Label("차단 해제", systemImage: "person.crop.circle.badge.xmark")
+                        }
+                    }
+                }
+            }
+            .navigationTitle("차단된 사용자")
+            .navigationBarTitleDisplayMode(.inline)
+            .onAppear(perform: load)
+            .refreshable { load() }
+        }
+
+        private func load() {
+            isLoading = true
+            error = nil
+            rows.removeAll()
+
+            let uids = Array(safety.blockedUids)
+            if uids.isEmpty { isLoading = false; return }
+
+            let db = Firestore.firestore()
+            // 닉네임을 살짝 붙여주자 (없으면 UID만 표기)
+            Task {
                 do {
-                    // ✅ 재인증 (애플 or 카카오 커스텀 토큰 자동 선택)
-                    try await AuthManager.shared.reauthenticateUser()
-                    try await Auth.auth().currentUser?.delete()
+                    var tmp: [UserRow] = []
+                    for uid in uids {
+                        let snap = try await db.collection("users").document(uid).getDocument()
+                        let nick = (snap.get("nickname") as? String) ?? ""
+                        tmp.append(UserRow(uid: uid, nickname: nick))
+                    }
                     await MainActor.run {
-                        isWorking = false
-                        appState.logout()
+                        self.rows = tmp.sorted { $0.nickname.lowercased() < $1.nickname.lowercased() }
+                        self.isLoading = false
                     }
                 } catch {
                     await MainActor.run {
-                        isWorking = false
-                        errorMessage = "재인증 또는 삭제에 실패했습니다: \(error.localizedDescription)"
+                        self.error = "목록을 불러오지 못했어요: \(error.localizedDescription)"
+                        self.isLoading = false
                     }
                 }
-            } else {
-                await MainActor.run {
-                    isWorking = false
-                    errorMessage = "계정 삭제에 실패했습니다: \(ns.localizedDescription)"
+            }
+        }
+
+        private func unblock(_ uid: String) {
+            Task {
+                await MainActor.run { isLoading = true }
+                SafetyCenter.shared.unblock(uid) { ok in
+                    Task { @MainActor in
+                        if ok {
+                            self.rows.removeAll { $0.uid == uid }
+                        } else {
+                            self.error = "차단 해제에 실패했어요. 잠시 후 다시 시도해 주세요."
+                        }
+                        self.isLoading = false
+                    }
                 }
             }
         }
-    }
-    
-    
-    
-    // MARK: - 임시 화면들
-    private struct ProfilePreviewStub: View {
-        var body: some View {
-            ZStack {
-                GradientBackground().ignoresSafeArea()
-                Text("프로필 미리보기 (추후 구현)")
-                    .padding()
-                    .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 12))
-            }
+
+        struct UserRow: Identifiable {
+            let uid: String
+            let nickname: String
+            var id: String { uid }
+            var initial: String { nickname.isEmpty ? "?" : String(nickname.prefix(1)) }
         }
     }
-    private struct HelpStub: View {
-        var body: some View {
-            ZStack {
-                GradientBackground().ignoresSafeArea()
-                Text("도움말 / 문의 (추후 구현)")
-                    .padding()
-                    .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 12))
-            }
-        }
-    }
-    private struct LicensesStub: View {
-        var body: some View {
-            ZStack {
-                GradientBackground().ignoresSafeArea()
-                Text("오픈소스 라이선스 (추후 구현)")
-                    .padding()
-                    .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 12))
-            }
-        }
-    }
+
 }

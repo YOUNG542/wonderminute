@@ -9,7 +9,7 @@
 	<key>CFBundleIconName</key>
 	<string>AppIcon</string>
 	<key>CFBundleIdentifier</key>
-	<string>com.yeongdaekim.wonderminute</string>
+	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
 	<key>CFBundleName</key>
 	<string>wonderminute</string>
 	<key>CFBundlePackageType</key>
@@ -24,16 +24,19 @@
 				<string>kakaob8cf7168ac44379964e92c80071dbaf1</string>
 			</array>
 		</dict>
-		 <!-- Firebase Phone Auth (오류 메시지에 나온 스킴 그대로) -->
-  <dict>
-    <key>CFBundleURLSchemes</key>
-    <array>
-      <string>app-1-118546917705-ios-6f7a84a6e9025b189f1298</string>
-    </array>
-  </dict>
+		<dict>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>app-1-118546917705-ios-6f7a84a6e9025b189f1298</string>
+			</array>
+		</dict>
 	</array>
 	<key>CFBundleVersion</key>
 	<string>16</string>
+	<key>FirebaseAppDelegateProxyEnabled</key>
+	<true/>
+	<key>FirebaseMessagingAutoInitEnabled</key>
+	<true/>
 	<key>LSApplicationQueriesSchemes</key>
 	<array>
 		<string>kakao</string>

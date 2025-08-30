@@ -14,8 +14,109 @@ const { RtcTokenBuilder, RtcRole } = require("agora-access-token");
 const { defineSecret } = require("firebase-functions/params");
 const AGORA_APP_ID   = defineSecret("AGORA_APP_ID");
 const AGORA_APP_CERT = defineSecret("AGORA_APP_CERT");
+const util = require('util');
+const { GoogleAuth } = require('google-auth-library');
+
 // 공통 헬퍼
 function ridOf(req) { return req.get("X-Call-Rid") || "-"; }
+
+// 토큰 로그 마스킹 (보안/가독성)
+function maskToken(t){ return t ? t.slice(0,10) + '…' + t.slice(-6) : ''; }
+
+// Firebase Admin SDK 오류를 최대한 풀어쓰는 헬퍼
+function flattenMessagingError(err) {
+  if (!err) return {};
+  const out = {
+    name: err.name,
+    code: err.code || err.errorInfo?.code,        // e.g. messaging/third-party-auth-error
+    message: err.message,
+  };
+
+  // Admin SDK 내부에 3rd party 응답이 들어오는 경우가 있음
+  const resp = err?.cause?.response;
+  if (resp) {
+    out.httpStatus = resp.status;
+    out.httpStatusText = resp.statusText;
+    // 헤더 중 진단에 의미있는 것만 추출
+    const pick = ['www-authenticate', 'apns-id', 'apns-topic'];
+    const headers = resp.headers || {};
+    out.headers = {};
+    for (const k of Object.keys(headers)) {
+      if (pick.includes(String(k).toLowerCase())) out.headers[k] = headers[k];
+    }
+    try {
+      out.thirdPartyResponse =
+        typeof resp.data === 'string' ? resp.data :
+        (resp.data ? resp.data : undefined);
+    } catch (_) {}
+  }
+
+  if (err.errorInfo) out.errorInfo = err.errorInfo;
+  if (err.stack) out.stack = err.stack.split('\n').slice(0,4).join(' | ');
+  return out;
+}
+
+// 실패시 한 번만 호출해서 FCM v1 validate_only 응답을 그대로 받아본다.
+async function diagnoseFcmAuthError(token, apns, notification) {
+  try {
+    const projectId = process.env.GCLOUD_PROJECT
+      || process.env.GCP_PROJECT
+      || (admin.app().options.projectId);
+    const auth = new GoogleAuth({
+      scopes: ['https://www.googleapis.com/auth/firebase.messaging']
+    });
+    const client = await auth.getClient();
+    const url = `https://fcm.googleapis.com/v1/projects/${projectId}/messages:send?validate_only=true`;
+    const body = { message: { token, apns, notification } };
+
+    await client.request({
+      url, method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      data: body,
+    });
+
+    console.log('[FCM][DIAG] validate_only passed (unexpected)');
+  } catch (e) {
+    const status = e.response?.status;
+    const data = e.response?.data;
+    // 여기에 보통 { error: { status, message, details: [ { '@type': '...FcmError', errorCode: 'APNS_AUTH_ERROR' } ] } } 형태가 온다.
+    console.error('[FCM][DIAG] validate_only error',
+      JSON.stringify({ status, data }, null, 2));
+  }
+}
+
+// 실제 전송으로 APNs 에러코드까지 파싱
+async function diagnoseFcmAuthErrorActual(token, apns, notification) {
+  try {
+    const projectId = process.env.GCLOUD_PROJECT
+      || process.env.GCP_PROJECT
+      || (admin.app().options.projectId);
+    const { GoogleAuth } = require('google-auth-library');
+    const auth = new GoogleAuth({
+      scopes: ['https://www.googleapis.com/auth/firebase.messaging']
+    });
+    const client = await auth.getClient();
+    const url = `https://fcm.googleapis.com/v1/projects/${projectId}/messages:send`;
+    const body = { message: { token, apns, notification } };
+
+    await client.request({
+      url, method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      data: body,
+    });
+    console.log('[FCM][DIAG] actual send OK (unexpected)');
+  } catch (e) {
+    const status = e.response?.status;
+    const data = e.response?.data;
+    // 핵심: details[...].errorCode 를 뽑자
+    const details = data?.error?.details || [];
+    const fcmErr = details.find(d => (d['@type']||'').includes('google.firebase.fcm.v1.FcmError'));
+    const code = fcmErr?.errorCode;
+    console.error('[FCM][DIAG] actual send error', JSON.stringify({ status, code, data }, null, 2));
+  }
+}
+
+
 
 
 const APPLE_AUDIENCE_BUNDLE_ID = defineSecret("APPLE_AUDIENCE_BUNDLE_ID");
@@ -183,7 +284,7 @@ exports.onQueueWrite = onDocumentWritten("matchingQueue/{uid}", async (event) =>
 // ------------------ Idempotent 매칭 트랜잭션 ------------------
 async function tryPairTwo() {
   await db.runTransaction(async (tx) => {
-    // 1) A 한 명 (최장 대기)
+    // 1) A 한 명
     const aQuery = db.collection("matchingQueue")
       .where("status", "==", "waiting")
       .orderBy("createdAt", "asc")
@@ -195,22 +296,21 @@ async function tryPairTwo() {
     const aRef = a.ref;
     const aUid = a.get("uid") || a.id;
     const aGender = a.get("gender");
-    const aWant   = a.get("wantGender"); // "남자" | "여자" | "all"
+    const aWant   = a.get("wantGender");
+    const aExclusions = new Set(a.get("exclusions") || []);  // ⬅️ 추가
 
     if (!aGender || !aWant) {
       tx.update(aRef, { status: "error_missing_fields" });
       return;
     }
 
-    // 2) A 기준, 호환되는 B 쿼리 만들기
-    // B는 반드시 A를 받아줘야 함 (B.wantGender ∈ {A.gender, "all"})
+    // 2) 후보 B 쿼리(성별 호환)
     let baseBQuery = db.collection("matchingQueue")
       .where("status", "==", "waiting")
       .where("wantGender", "in", [aGender, "all"])
       .orderBy("createdAt", "asc");
 
     if (aWant !== "all") {
-      // A가 특정 성별을 원하면 B.gender 고정
       baseBQuery = db.collection("matchingQueue")
         .where("status", "==", "waiting")
         .where("gender", "==", aWant)
@@ -218,18 +318,43 @@ async function tryPairTwo() {
         .orderBy("createdAt", "asc");
     }
 
-    // ✅ 후보를 여러 명 가져와서 자기 자신을 스킵
+    // 최대 5명 후보 가져온 후, 아래 조건으로 **첫 번째 통과자** 선택
     const bSnap = await tx.get(baseBQuery.limit(5));
     if (bSnap.empty) return;
 
-    const bDoc = bSnap.docs.find(d => ((d.get("uid") || d.id) !== aUid));
-    if (!bDoc) return; // 후보가 전부 자기 자신뿐이면 다음 기회에
+    let bDoc = null;
+    for (const cand of bSnap.docs) {
+      const bUid = cand.get("uid") || cand.id;
+      if (bUid === aUid) continue;
+
+      // 2-1) A가 B를 제외했거나 → 스킵
+      if (aExclusions.has(bUid)) continue;
+
+      // 2-2) B의 제외 목록에 A가 있으면 → 스킵
+      const bExclusions = new Set(cand.get("exclusions") || []);
+      if (bExclusions.has(aUid)) continue;
+
+      // 2-3) blocks 컬렉션 양방향 검사 (문서ID: `${blocker}_${blocked}`)
+      const abRef = db.collection("blocks").doc(`${aUid}_${bUid}`);
+      const baRef = db.collection("blocks").doc(`${bUid}_${aUid}`);
+      const [abSnap, baSnap] = await Promise.all([tx.get(abRef), tx.get(baRef)]);
+
+      const abActive = abSnap.exists && (abSnap.get("status") === "active");
+      const baActive = baSnap.exists && (baSnap.get("status") === "active");
+      if (abActive || baActive) continue;
+
+      // ✅ 통과
+      bDoc = cand;
+      break;
+    }
+
+    if (!bDoc) return; // 후보 모두 제외됨 → 다음 기회
 
     const b = bDoc;
     const bRef = b.ref;
     const bUid = b.get("uid") || b.id;
 
-    // 3) 중복/활성 체크 (양쪽 모두 방 없음이어야 함)
+    // 3) 중복/활성 체크
     const aUserRef = db.collection("users").doc(aUid);
     const bUserRef = db.collection("users").doc(bUid);
     const [aUserDoc, bUserDoc] = await Promise.all([tx.get(aUserRef), tx.get(bUserRef)]);
@@ -257,6 +382,7 @@ async function tryPairTwo() {
     tx.delete(bRef);
   });
 }
+
 
 
 // ------------------ 강제 매칭(디버그/운영용) ------------------
@@ -743,5 +869,243 @@ async function ensureJose() {
     _appleJWKS = _joseLib.createRemoteJWKSet(new URL('https://appleid.apple.com/auth/keys'));
   }
   return _joseLib;
+}
+
+// ------------------ 계정 삭제 (Callable) ------------------
+exports.deleteSelf = onCall(async (req) => {
+  const ctx = req.auth;
+  if (!ctx) throw new Error("unauthenticated");
+  const uid = ctx.uid;
+
+  const bucket = admin.storage().bucket();
+  const userRef = db.collection("users").doc(uid);
+
+  // 0) 프로필 이미지 URL 확보 (있으면 이후 Storage 정리)
+  const snap = await userRef.get();
+  const url = snap.exists ? snap.get("profileImageUrl") : undefined;
+
+  // 1) Auth 계정 삭제 (Admin → 최근로그인 제약 없음)
+  await admin.auth().deleteUser(uid);
+
+  // 2) Firestore/Storage 정리 (Auth 삭제 이후, 실패해도 무시)
+  try {
+    await userRef.delete();
+  } catch (_) {}
+
+  try {
+    if (url) {
+      // gs:// or https:// 둘 다 파싱
+      let filePath = null;
+      if (url.startsWith("gs://")) {
+        // gs://bucket/path/to/file
+        const [, , ...rest] = url.split("/");
+        filePath = rest.join("/");
+      } else if (url.includes("/o/")) {
+        // https URL → .../o/<encodedPath>?...
+        const m = url.match(/\/o\/([^?]+)/);
+        if (m) filePath = decodeURIComponent(m[1]);
+      }
+      if (filePath) {
+        await bucket.file(filePath).delete({ ignoreNotFound: true });
+      }
+    }
+  } catch (_) {}
+
+  return { ok: true };
+});
+
+// ================== [ 상담 채팅 ] ==================
+
+// 고정 상담사 UID (요구사항)
+const COUNSELOR_UID = "SIaBmD28EwdVX2POrNOxtOFCKYk1";
+
+/**
+ * 메시지 생성 트리거:
+ * 경로: counselingSessions/{userId}/messages/{messageId}
+ * 효과:
+ *  - 세션 문서가 없으면 생성(status=open)
+ *  - lastMessage, unreadCounts 갱신
+ *  - 상대가 백그라운드로 추정될 때 FCM 전송 (간단 버전: 무조건 전송)
+ */
+exports.onCounselingMessageCreated = onDocumentCreated(
+  "counselingSessions/{userId}/messages/{messageId}",
+  async (event) => {
+    const userId = event.params.userId;
+    const msg = event.data?.data();
+    if (!msg) return;
+
+    const sessionRef = db.collection("counselingSessions").doc(userId);
+    const sessionSnap = await sessionRef.get();
+
+    // 세션 문서 보장
+    if (!sessionSnap.exists) {
+      await sessionRef.set({
+        userId,
+        counselorId: COUNSELOR_UID,
+        status: "open",
+        openedAt: FieldValue.serverTimestamp(),
+        unreadCounts: { user: 0, counselor: 0 },
+      }, { merge: true });
+    }
+
+    // lastMessage & unreadCounts 반영 (트랜잭션)
+    await db.runTransaction(async (tx) => {
+      const s = await tx.get(sessionRef);
+      const unread = s.get("unreadCounts") || { user: 0, counselor: 0 };
+
+      // 보낸 사람에 따라 반대편 카운트 +1
+      const role = msg.role; // "user" | "counselor"
+      if (role === "user") unread.counselor = (unread.counselor || 0) + 1;
+      else unread.user = (unread.user || 0) + 1;
+
+      tx.set(sessionRef, {
+        lastMessage: {
+          text: msg.text || "",
+          createdAt: msg.createdAt || FieldValue.serverTimestamp(),
+          role: role,
+        },
+        unreadCounts: unread,
+        updatedAt: FieldValue.serverTimestamp(),
+      }, { merge: true });
+    });
+
+    // FCM 전송 (간단: 항상 보냄)
+    try {
+      const toUid = (msg.role === "user") ? COUNSELOR_UID : userId;
+      await sendFcmToUid(toUid, {
+        notification: {
+          title: (msg.role === "user") ? "새 상담 문의가 도착했어요" : "상담사가 답변했어요",
+          body: (msg.text || "").slice(0, 60),
+        },
+        data: {
+          kind: "COUNSELING_NEW_MESSAGE",
+          userId: userId,
+        },
+      });
+    } catch (e) {
+      console.error("FCM send error:", e.message);
+    }
+  }
+);
+
+/**
+ * 읽음 처리 보조 HTTPS (선택): 상대 화면 진입 시 미읽음 0으로
+ * POST body: { userId, role }  role: "user" | "counselor"
+ */
+exports.readCounseling = onRequest(async (req, res) => {
+  try {
+    const uid = await verifyAuth(req);
+    const { userId, role } = req.body || {};
+    if (!userId || !role) throw new Error("missing params");
+
+    const sessionRef = db.collection("counselingSessions").doc(userId);
+
+    await db.runTransaction(async (tx) => {
+      const s = await tx.get(sessionRef);
+      if (!s.exists) return;
+      const unread = s.get("unreadCounts") || { user: 0, counselor: 0 };
+
+      // 누가 '읽었다'면 그 사람이 보는 미읽음 카운트를 0으로 초기화
+      if (role === "user") unread.user = 0;
+      else unread.counselor = 0;
+
+      tx.set(sessionRef, { unreadCounts: unread }, { merge: true });
+    });
+
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(400).json({ ok: false, error: e.message });
+  }
+});
+
+/**
+ * 세션 종료 (사용자/상담사 공용)
+ * data: { userId }
+ */
+exports.closeCounselingSession = onCall(async (req) => {
+  const ctx = req.auth; if (!ctx) throw new Error("unauthenticated");
+  const { userId } = req.data || {};
+  if (!userId) throw new Error("missing userId");
+
+  const ref = db.collection("counselingSessions").doc(userId);
+  await ref.set({
+    status: "closed",
+    closedAt: FieldValue.serverTimestamp(),
+  }, { merge: true });
+
+  return { ok: true };
+});
+
+async function sendFcmToUid(uid, payload, { dryRun = false } = {}) {
+  const snap = await db.collection("users").doc(uid).collection("fcmTokens").get();
+  const tokens = snap.docs.map(d => d.id).filter(Boolean);
+  console.log(`[FCM] uid=${uid} tokens=${tokens.length}`);
+  if (!tokens.length) return;
+
+  const IOS_BUNDLE_ID = "com.yeongdaekim.wonderminute";
+  const apns = {
+    headers: {
+      "apns-topic": IOS_BUNDLE_ID,
+      "apns-push-type": "alert",
+      "apns-priority": "10",
+    },
+    payload: { aps: {} },
+  };
+
+  const request = { tokens, apns, ...payload };
+
+  let resp;
+  try {
+    resp = await admin.messaging().sendEachForMulticast(request, dryRun);
+  } catch (e) {
+    console.error(`[FCM] sendEachForMulticast THROW uid=${uid} dryRun=${dryRun} err=`,
+      require('util').inspect(flattenMessagingError(e), { depth: 5 }));
+    return;
+  }
+
+  const toRemove = [];
+  const byCode = {};
+  let diagDone = false;
+
+  for (let i = 0; i < resp.responses.length; i++) {
+    const r = resp.responses[i];
+    const t = tokens[i];
+
+    if (r.success) {
+      console.log(`[FCM] ✅ ok token=${t.slice(0,10)}…${t.slice(-6)} msgId=${r.messageId}`);
+      continue;
+    }
+
+    const info = flattenMessagingError(r.error);
+    byCode[info.code || 'unknown'] = (byCode[info.code || 'unknown'] || 0) + 1;
+
+    // 흔한 무효 토큰은 정리
+    const removable = [
+      'messaging/registration-token-not-registered',
+      'messaging/invalid-registration-token',
+    ];
+    if (removable.includes(info.code)) toRemove.push(t);
+
+    console.error(
+      `[FCM] ❌ fail token=${t.slice(0,10)}…${t.slice(-6)} ` +
+      `code=${info.code} http=${info.httpStatus||'-'} ` +
+      `msg="${info.message}" thirdParty=${info.thirdPartyResponse ? JSON.stringify(info.thirdPartyResponse) : '-'} ` +
+      `headers=${info.headers ? JSON.stringify(info.headers) : '-'}`
+    );
+
+ if (!diagDone && info.code === 'messaging/third-party-auth-error') {
+  diagDone = true;
+  try {
+    await diagnoseFcmAuthErrorActual(t, apns, payload.notification);
+  } catch (_) {}
+}
+
+  }
+
+  console.log(`[FCM] summary uid=${uid} dryRun=${dryRun} success=${resp.successCount} failure=${resp.failureCount} byCode=${JSON.stringify(byCode)}`);
+
+  await Promise.all(toRemove.map(tok =>
+    db.collection("users").doc(uid).collection("fcmTokens").doc(tok).delete().catch(()=>{})
+  ));
 }
 

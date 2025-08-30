@@ -41,6 +41,8 @@
 		BE0ABFAD2E506E06001268BD /* IntroSplashView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE0ABFAC2E506E06001268BD /* IntroSplashView.swift */; };
 		BE0ABFB12E51C6B9001268BD /* ProfileCenterView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE0ABFB02E51C6B9001268BD /* ProfileCenterView.swift */; };
 		BE0ABFB32E51CA06001268BD /* Option.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE0ABFB22E51CA06001268BD /* Option.swift */; };
+		BE485C5D2E6296AC0049F1AA /* SafetyCenter.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE485C5C2E6296AC0049F1AA /* SafetyCenter.swift */; };
+		BE485C5F2E629F800049F1AA /* ReportedUsersMonitorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE485C5E2E629F800049F1AA /* ReportedUsersMonitorView.swift */; };
 		BE8B6AAE2E534E42002A9143 /* CallHistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE8B6AAD2E534E42002A9143 /* CallHistoryView.swift */; };
 		BE8B6AB02E534E55002A9143 /* ChatListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE8B6AAF2E534E55002A9143 /* ChatListView.swift */; };
 		BE8B6AB22E535D1A002A9143 /* AuthManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE8B6AB12E535D1A002A9143 /* AuthManager.swift */; };
@@ -60,6 +62,11 @@
 		BEA2E74A2E3D9B28006C4F74 /* LoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BEA2E7492E3D9B28006C4F74 /* LoginView.swift */; };
 		BEA2E74C2E3D9B36006C4F74 /* UserInfoView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BEA2E74B2E3D9B36006C4F74 /* UserInfoView.swift */; };
 		BEA2E74E2E3D9B43006C4F74 /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = BEA2E74D2E3D9B43006C4F74 /* AppState.swift */; };
+		BEA9542C2E5FE10800DA22D5 /* LiveChatService.swift in Sources */ = {isa = PBXBuildFile; fileRef = BEA9542B2E5FE10800DA22D5 /* LiveChatService.swift */; };
+		BEA9542E2E5FE14E00DA22D5 /* LiveSupportIntroView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BEA9542D2E5FE14E00DA22D5 /* LiveSupportIntroView.swift */; };
+		BEA954302E5FE16600DA22D5 /* LiveChatSessionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BEA9542F2E5FE16600DA22D5 /* LiveChatSessionView.swift */; };
+		BEA954322E5FE18A00DA22D5 /* CounselorInboxView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BEA954312E5FE18A00DA22D5 /* CounselorInboxView.swift */; };
+		BEA954342E5FE2D800DA22D5 /* CounselorChatView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BEA954332E5FE2D800DA22D5 /* CounselorChatView.swift */; };
 		BEE5C0182E3DC627005310A7 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = BEE5C0172E3DC627005310A7 /* AppDelegate.swift */; };
 		BEE5C01E2E3DD0FB005310A7 /* KakaoSDKAuth in Frameworks */ = {isa = PBXBuildFile; productRef = BEE5C01D2E3DD0FB005310A7 /* KakaoSDKAuth */; };
 		BEE5C0202E3DD0FB005310A7 /* KakaoSDKCommon in Frameworks */ = {isa = PBXBuildFile; productRef = BEE5C01F2E3DD0FB005310A7 /* KakaoSDKCommon */; };
@@ -130,6 +137,8 @@
 		BE0ABFAC2E506E06001268BD /* IntroSplashView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IntroSplashView.swift; sourceTree = "<group>"; };
 		BE0ABFB02E51C6B9001268BD /* ProfileCenterView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileCenterView.swift; sourceTree = "<group>"; };
 		BE0ABFB22E51CA06001268BD /* Option.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Option.swift; sourceTree = "<group>"; };
+		BE485C5C2E6296AC0049F1AA /* SafetyCenter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SafetyCenter.swift; sourceTree = "<group>"; };
+		BE485C5E2E629F800049F1AA /* ReportedUsersMonitorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportedUsersMonitorView.swift; sourceTree = "<group>"; };
 		BE8B6AAD2E534E42002A9143 /* CallHistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CallHistoryView.swift; sourceTree = "<group>"; };
 		BE8B6AAF2E534E55002A9143 /* ChatListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatListView.swift; sourceTree = "<group>"; };
 		BE8B6AB12E535D1A002A9143 /* AuthManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthManager.swift; sourceTree = "<group>"; };
@@ -153,6 +162,11 @@
 		BEA2E7492E3D9B28006C4F74 /* LoginView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginView.swift; sourceTree = "<group>"; };
 		BEA2E74B2E3D9B36006C4F74 /* UserInfoView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserInfoView.swift; sourceTree = "<group>"; };
 		BEA2E74D2E3D9B43006C4F74 /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppState.swift; sourceTree = "<group>"; };
+		BEA9542B2E5FE10800DA22D5 /* LiveChatService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveChatService.swift; sourceTree = "<group>"; };
+		BEA9542D2E5FE14E00DA22D5 /* LiveSupportIntroView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveSupportIntroView.swift; sourceTree = "<group>"; };
+		BEA9542F2E5FE16600DA22D5 /* LiveChatSessionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveChatSessionView.swift; sourceTree = "<group>"; };
+		BEA954312E5FE18A00DA22D5 /* CounselorInboxView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CounselorInboxView.swift; sourceTree = "<group>"; };
+		BEA954332E5FE2D800DA22D5 /* CounselorChatView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CounselorChatView.swift; sourceTree = "<group>"; };
 		BEE5C0172E3DC627005310A7 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		BEE5C01B2E3DC905005310A7 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		BEE5C0232E3DD8BC005310A7 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
@@ -316,6 +330,13 @@
 				BE8B6AB52E545626002A9143 /* PhoneVerifyVM.swift */,
 				BE8B6AB72E545640002A9143 /* PhoneVerifyView.swift */,
 				BE8B6ABB2E5769EE002A9143 /* CallDiag.swift */,
+				BEA9542B2E5FE10800DA22D5 /* LiveChatService.swift */,
+				BEA9542D2E5FE14E00DA22D5 /* LiveSupportIntroView.swift */,
+				BEA9542F2E5FE16600DA22D5 /* LiveChatSessionView.swift */,
+				BEA954312E5FE18A00DA22D5 /* CounselorInboxView.swift */,
+				BEA954332E5FE2D800DA22D5 /* CounselorChatView.swift */,
+				BE485C5C2E6296AC0049F1AA /* SafetyCenter.swift */,
+				BE485C5E2E629F800049F1AA /* ReportedUsersMonitorView.swift */,
 			);
 			path = wonderminute;
 			sourceTree = "<group>";
@@ -482,6 +503,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				BE0ABF6C2E46D5FF001268BD /* FunctionsAPI.swift in Sources */,
+				BEA9542C2E5FE10800DA22D5 /* LiveChatService.swift in Sources */,
 				BE0ABF952E46E918001268BD /* CallEngine.swift in Sources */,
 				BE8B6AB42E5360A2002A9143 /* UserOnboardingVM.swift in Sources */,
 				BE0ABF972E46E936001268BD /* MatchWatcher.swift in Sources */,
@@ -501,11 +523,17 @@
 				BEE5C0242E3DD8BC005310A7 /* RootView.swift in Sources */,
 				BE0ABF9B2E4A3A89001268BD /* Color.swift in Sources */,
 				BEA2E7482E3D9B19006C4F74 /* IntroAnimationView.swift in Sources */,
+				BEA9542E2E5FE14E00DA22D5 /* LiveSupportIntroView.swift in Sources */,
 				BE0ABFA72E506BD0001268BD /* GradientBackground.swift in Sources */,
 				BE8B6AB22E535D1A002A9143 /* AuthManager.swift in Sources */,
+				BE485C5D2E6296AC0049F1AA /* SafetyCenter.swift in Sources */,
 				BE0ABFA22E506BA2001268BD /* AppTheme.swift in Sources */,
+				BEA954342E5FE2D800DA22D5 /* CounselorChatView.swift in Sources */,
 				BEE6274E2E418F1600BE3D81 /* CallView.swift in Sources */,
 				BE0ABFA42E506BB4001268BD /* Color+Hex.swift in Sources */,
+				BEA954322E5FE18A00DA22D5 /* CounselorInboxView.swift in Sources */,
+				BEA954302E5FE16600DA22D5 /* LiveChatSessionView.swift in Sources */,
+				BE485C5F2E629F800049F1AA /* ReportedUsersMonitorView.swift in Sources */,
 				BEA2E7462E3D9AC8006C4F74 /* WelcomeView.swift in Sources */,
 				BE0ABFB32E51CA06001268BD /* Option.swift in Sources */,
 				BEA2E74A2E3D9B28006C4F74 /* LoginView.swift in Sources */,
@@ -674,6 +702,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = wonderminute/wonderminute.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 16;
 				DEVELOPMENT_ASSET_PATHS = "\"wonderminute/Preview Content\"";
@@ -699,6 +728,7 @@
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.yeongdaekim.wonderminute;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				SDKROOT = auto;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -713,6 +743,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = wonderminute/wonderminute.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 16;
 				DEVELOPMENT_ASSET_PATHS = "\"wonderminute/Preview Content\"";
@@ -738,6 +769,7 @@
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.yeongdaekim.wonderminute;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				SDKROOT = auto;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
 				SWIFT_EMIT_LOC_STRINGS = YES;

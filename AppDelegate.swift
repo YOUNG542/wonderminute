@@ -5,46 +5,61 @@ import KakaoSDKAuth
 import FirebaseCore
 import FirebaseAppCheck
 import FirebaseAuth
-import UserNotifications   // ✅ 추가
-import Firebase
+import FirebaseMessaging   // ✅ 추가
+import UserNotifications
 
-class AppDelegate: NSObject, UIApplicationDelegate {
+class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate, MessagingDelegate {
 
     func application(
         _ application: UIApplication,
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
     ) -> Bool {
 
-        // ✅ Firebase 초기화
+        // Firebase
         FirebaseApp.configure()
-        
-        // ✅ Firebase 디버그 로그 활성화
         FirebaseConfiguration.shared.setLoggerLevel(.debug)
         print("🔥 Firebase logger=DEBUG at \(Date())")
 
-
-        // ✅ App Check 설정
+        // App Check
         #if DEBUG
         AppCheck.setAppCheckProviderFactory(AppCheckDebugProviderFactory())
         #else
-        AppCheck.setAppCheckProviderFactory(DeviceCheckProviderFactory())
+        if #available(iOS 14.0, *) {
+          AppCheck.setAppCheckProviderFactory(AppAttestProviderFactory())
+        } else {
+          // 구형 기기 대비 폴백(최소 타깃이 14+면 이 줄들 삭제해도 됨)
+          AppCheck.setAppCheckProviderFactory(DeviceCheckProviderFactory())
+        }
         #endif
 
-        // ✅ Kakao SDK 초기화
+
+        // Kakao
         KakaoSDK.initSDK(appKey: "b8cf7168ac44379964e92c80071dbaf1")
 
-        // ✅ 원격 푸시 등록 (APNs) — Phone Auth에 필요
+        // 알림 권한 + APNs 등록
+        UNUserNotificationCenter.current().delegate = self
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .badge, .sound]) { granted, err in
-          print("🔔 APNs auth granted=\(granted) err=\(String(describing: err)) at \(Date())")
-          DispatchQueue.main.async {
-            UIApplication.shared.registerForRemoteNotifications()
-          }
+            print("🔔 APNs auth granted=\(granted) err=\(String(describing: err))")
+            DispatchQueue.main.async { UIApplication.shared.registerForRemoteNotifications() }
+        }
+
+        // FCM delegate
+        Messaging.messaging().delegate = self
+
+        // 로그인 상태가 바뀔 때마다 최신 FCM 토큰을 사용자 문서에 저장
+        Auth.auth().addStateDidChangeListener { _, user in
+            guard let user else { return }
+            Messaging.messaging().token { token, error in
+                if let t = token, error == nil {
+                    saveFcmToken(uid: user.uid, token: t)
+                }
+            }
         }
 
         return true
     }
 
-    // ✅ APNs 토큰을 FirebaseAuth(PhoneAuth)로 전달
+    // APNs 토큰 → FirebaseAuth(PhoneAuth 용)
     func application(_ application: UIApplication,
                      didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
         #if DEBUG
@@ -55,43 +70,44 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         print("📮 APNs token set len=\(deviceToken.count)")
     }
 
-    // ✅ 원격 알림 수신 시 PhoneAuth에 먼저 전달
+    // FirebaseAuth(PhoneAuth) 우선 처리
     func application(_ application: UIApplication,
                      didReceiveRemoteNotification userInfo: [AnyHashable : Any],
                      fetchCompletionHandler completionHandler: @escaping (UIBackgroundFetchResult) -> Void) {
         let handled = Auth.auth().canHandleNotification(userInfo)
-        print("📩 didReceiveRemoteNotification handledByAuth=\(handled) userInfoKeys=\(userInfo.keys)")
         if handled { completionHandler(.noData); return }
         completionHandler(.noData)
-
     }
 
-    // ✅ 외부 URL 콜백 처리 (FirebaseAuth → Kakao 순서 유지)
-    func application(
-        _ app: UIApplication,
-        open url: URL,
-        options: [UIApplication.OpenURLOptionsKey : Any] = [:]
-    ) -> Bool {
-        print("📥 AppDelegate openURL 진입됨: \(url)")
+    // 포그라운드에서도 배너/사운드 보이게
+    func userNotificationCenter(_ center: UNUserNotificationCenter,
+                                willPresent notification: UNNotification,
+                                withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
+        completionHandler([.banner, .list, .sound])
+    }
 
-        // Firebase Phone Auth reCAPTCHA 콜백 우선
-        if Auth.auth().canHandle(url) {
-            print("✅ FirebaseAuth handled URL")
-            return true
-        }
+    // FCM 토큰 리프레시 콜백
+    func messaging(_ messaging: Messaging, didReceiveRegistrationToken fcmToken: String?) {
+        guard let uid = Auth.auth().currentUser?.uid, let t = fcmToken else { return }
+        saveFcmToken(uid: uid, token: t)
+        print("✅ FCM token refreshed & saved")
+    }
 
-        // Kakao 로그인 콜백
-        if AuthApi.isKakaoTalkLoginUrl(url) {
-            print("✅ KakaoTalk 로그인 URL 감지됨")
-            let result = AuthController.handleOpenUrl(url: url)
-
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                AppState.shared.fetchUserInfoAndGoToMain()
-            }
-            return result
-        }
-
-        print("❌ 처리할 수 없는 URL")
+    // 외부 URL 콜백 (FirebaseAuth → Kakao 순서)
+    func application(_ app: UIApplication, open url: URL, options: [UIApplication.OpenURLOptionsKey : Any] = [:]) -> Bool {
+        if Auth.auth().canHandle(url) { return true }
+        if AuthApi.isKakaoTalkLoginUrl(url) { return AuthController.handleOpenUrl(url: url) }
         return false
     }
+}
+
+// MARK: - Firestore에 FCM 토큰 저장
+import FirebaseFirestore
+private func saveFcmToken(uid: String, token: String) {
+    let db = Firestore.firestore()
+    db.collection("users").document(uid)
+        .collection("fcmTokens").document(token)
+        .setData(["updatedAt": FieldValue.serverTimestamp()], merge: true) { err in
+            if let err { print("⚠️ saveFcmToken error:", err.localizedDescription) }
+        }
 }

@@ -131,7 +131,7 @@ final class MatchWatcher: ObservableObject {
                 let p = PeerProfile(
                     id: uid,
                     nickname: (d["nickname"] as? String) ?? "상대방",
-                    photoURL: d["photoURL"] as? String,
+                    photoURL: d["profileImageUrl"] as? String,
                     gender: d["gender"] as? String,
                     mbti: d["mbti"] as? String,
                     interests: d["interests"] as? [String]
