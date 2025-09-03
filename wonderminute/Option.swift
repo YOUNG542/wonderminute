@@ -25,33 +25,23 @@ struct OptionView: View {
             
             List {
                 // MARK: - 고객센터
+                // MARK: - 고객센터
                 Section(header: Text("고객센터")) {
-                    NavigationLink("자주 묻는 질문(FAQ)") { FAQView() }
                     NavigationLink("실시간 상담 서비스") { LiveSupportIntroView() }
-                    NavigationLink("질문 게시판") { QABoardStub() }
                 }
+
                 
-                // ✅ 상담자 전용 진입 버튼 (너 계정일 때만 노출)
-                Section(header: Text("상담자 전용")) {
-                    if Auth.auth().currentUser?.uid == COUNSELOR_UID {
-                        // 인박스 → 개별 채팅으로 이동하는 구조
+              
+                // ✅ 상담자 전용 (권한 있을 때만 섹션 자체를 렌더링)
+                if Auth.auth().currentUser?.uid == COUNSELOR_UID {
+                    Section(header: Text("상담자 전용")) {
                         NavigationLink("상담 인박스 열기") { CounselorInboxView() }
+                        NavigationLink("신고된 유저들 모니터링") { ReportedUsersMonitorView() }
                         // 필요 시 바로 특정 유저와의 채팅으로 들어가고 싶으면 아래 라인을 사용
                         // NavigationLink("상담 채팅 바로가기") { CounselorChatView(userId: "<특정 userId>") }
-                    } else {
-                        Text("권한이 없습니다").foregroundStyle(.secondary)
                     }
                 }
-                // ✅ 상담자 전용 진입 버튼 (너 계정일 때만 노출)
-                Section(header: Text("상담자 전용")) {
-                    if Auth.auth().currentUser?.uid == COUNSELOR_UID {
-                        NavigationLink("상담 인박스 열기") { CounselorInboxView() }
-                        // ⬇️ 추가
-                        NavigationLink("신고된 유저들 모니터링") { ReportedUsersMonitorView() }
-                    } else {
-                        Text("권한이 없습니다").foregroundStyle(.secondary)
-                    }
-                }
+
 
                 
                 // MARK: - 커뮤니티 & 약관
@@ -63,7 +53,7 @@ struct OptionView: View {
                 
                 // ✅ 차단 관리 진입
                 Section(header: Text("안전/차단")) {
-                    NavigationLink("차단된 사용자 관리") { BlockedUsersView() }
+                    NavigationLink("차단했던 사용자 관리") { BlockedUsersView() }
                 }
                 // MARK: - 세션
                 Section {
@@ -139,68 +129,9 @@ struct OptionView: View {
         }
     }
     
-    // 고객센터 - FAQ
-    private struct FAQView: View {
-        @State private var searchText = ""
-        var body: some View {
-            ZStack {
-                GradientBackground().ignoresSafeArea()
-                VStack(spacing: 12) {
-                    TextField("검색어를 입력하세요", text: $searchText)
-                        .textFieldStyle(.roundedBorder)
-                        .padding(.horizontal)
-                    
-                    List {
-                        FAQItem(q: "통화는 어떻게 시작하나요?",
-                                a: "매칭 후 입장 버튼을 누르면 자동으로 연결됩니다. 연결 전 네트워크 상태를 확인해 주세요.")
-                        FAQItem(q: "상대방이 들리지 않아요",
-                                a: "마이크 권한/음량을 확인하고, 이어폰/스피커를 바꿔보세요. 그래도 안 되면 앱을 재시작해 주세요.")
-                        FAQItem(q: "신고/차단은 어떻게 하나요?",
-                                a: "프로필/채팅 화면의 ••• 메뉴에서 신고/차단을 선택할 수 있습니다.")
-                        FAQItem(q: "결제 및 환불 규정",
-                                a: "초기 30초 유예 후 과금이 시작됩니다. 정책에 따라 환불이 제한될 수 있습니다. (자세한 내용은 ‘이용약관’ 참조)")
-                    }
-                    .listStyle(.insetGrouped)
-                }
-                .navigationTitle("FAQ")
-                .navigationBarTitleDisplayMode(.inline)
-            }
-        }
-        
-        private struct FAQItem: View {
-            let q: String
-            let a: String
-            @State private var open = false
-            var body: some View {
-                DisclosureGroup(isExpanded: $open) {
-                    Text(a).font(.subheadline).foregroundStyle(.secondary)
-                } label: {
-                    Text("Q. \(q)").font(.body)
-                }
-            }
-        }
-    }
+
     
-    // 고객센터 - 질문 게시판 (틀)
-    private struct QABoardStub: View {
-        var body: some View {
-            ZStack {
-                GradientBackground().ignoresSafeArea()
-                VStack(spacing: 12) {
-                    Text("질문 게시판 (준비중)")
-                        .font(.headline)
-                        .padding(.top, 8)
-                    List {
-                        Text("• 게시판 목록/작성/댓글 기능은 추후 업데이트됩니다.")
-                        Text("• 우선 FAQ를 확인해 주세요. 해결되지 않으면 실시간 상담을 이용해주세요.")
-                    }
-                    .listStyle(.insetGrouped)
-                }
-                .navigationTitle("질문 게시판")
-                .navigationBarTitleDisplayMode(.inline)
-            }
-        }
-    }
+    
     
     // 커뮤니티 가이드라인 (틀)
     private struct CommunityGuidelinesView: View {
@@ -271,46 +202,121 @@ struct OptionView: View {
         @State private var rows: [UserRow] = []
         @State private var isLoading = true
         @State private var error: String?
-
+        @State private var showUnblockConfirm = false
+        @State private var selectedUser: UserRow?
+      
         var body: some View {
-            List {
-                if isLoading { ProgressView("불러오는 중…") }
-                if let error { Text(error).foregroundStyle(.red) }
-
-                if rows.isEmpty && !isLoading && error == nil {
-                    Text("차단한 사용자가 없습니다.")
-                        .foregroundStyle(.secondary)
-                }
-
-                ForEach(rows) { row in
-                    HStack(spacing: 12) {
-                        // 가벼운 아바타(이름 이니셜)
-                        Circle().fill(Color.gray.opacity(0.15))
-                            .frame(width: 36, height: 36)
-                            .overlay(Text(row.initial).font(.headline))
-
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(row.nickname.isEmpty ? row.uid : row.nickname)
-                                .font(.body.weight(.semibold))
-                            if !row.nickname.isEmpty {
-                                Text(row.uid).font(.caption2).foregroundStyle(.secondary)
+            ZStack {
+                GradientBackground().ignoresSafeArea()
+                ScrollView {
+                    LazyVStack(spacing: 12) {
+                        if isLoading {
+                            HStack {
+                                Spacer()
+                                ProgressView("불러오는 중…").tint(.white)
+                                Spacer()
                             }
+                            .padding(.vertical, 8)
                         }
-                        Spacer()
-                    }
-                    .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                        Button(role: .destructive) {
-                            unblock(row.uid)
-                        } label: {
-                            Label("차단 해제", systemImage: "person.crop.circle.badge.xmark")
+
+                        if let error {
+                            Text(error)
+                                .foregroundColor(.white.opacity(0.85))
+                                .padding(.vertical, 4)
+                        }
+
+                        if rows.isEmpty && !isLoading && error == nil {
+                            Text("차단한 사용자가 없습니다.")
+                                .foregroundColor(.white.opacity(0.7))
+                                .padding(.vertical, 4)
+                        }
+
+                        ForEach(rows) { row in
+                            Button {
+                                selectedUser = row
+                                showUnblockConfirm = true
+                            } label: {
+                                // ⬇️ 유닛 카드 - 기존 HStack 그대로
+                                HStack(spacing: 12) {
+                                    // 아바타
+                                    if let url = row.photoURL, !url.isEmpty, let u = URL(string: url) {
+                                        AsyncImage(url: u) { phase in
+                                            switch phase {
+                                            case .success(let img):
+                                                img.resizable()
+                                                    .scaledToFill()
+                                                    .frame(width: 52, height: 52)
+                                                    .clipShape(Circle())
+                                                    .overlay(Circle().stroke(Color.white.opacity(0.35), lineWidth: 1))
+                                            default:
+                                                Circle().fill(Color.white.opacity(0.08))
+                                                    .frame(width: 52, height: 52)
+                                                    .overlay(Image(systemName: "person.fill")
+                                                                .foregroundStyle(.white.opacity(0.6)))
+                                            }
+                                        }
+                                    } else {
+                                        Circle().fill(Color.white.opacity(0.08))
+                                            .frame(width: 52, height: 52)
+                                            .overlay(Image(systemName: "person.fill")
+                                                        .foregroundStyle(.white.opacity(0.6)))
+                                    }
+
+                                    // 텍스트
+                                    VStack(alignment: .leading, spacing: 3) {
+                                        Text(row.nickname.isEmpty ? "알 수 없음" : row.nickname)
+                                            .font(.headline)
+                                            .foregroundColor(.black)
+
+                                        Text("탭하여 차단 해제")
+                                            .font(.caption)
+                                            .foregroundColor(.gray)
+
+                                    }
+
+                                    Spacer()
+
+                                    // 얇은 chevron
+                                    Image(systemName: "chevron.right")
+                                        .font(.footnote.weight(.semibold))
+                                        .foregroundColor(.gray)
+
+                                }
+                                .padding(.horizontal, 14)
+                                .padding(.vertical, 12)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                        .fill(Color.white) // 완전 흰색 배경
+                                        .shadow(color: .black.opacity(0.1), radius: 4, y: 2)
+                                )
+
+                            }
+                            .buttonStyle(.plain)
                         }
                     }
+                    .padding(.top, 0)
+                    .padding(.horizontal, 16)  // 좌우 인셋
                 }
+                .scrollIndicators(.hidden)
+                .alert("차단 해제", isPresented: $showUnblockConfirm) {
+                    Button("취소", role: .cancel) { }
+                    if let u = selectedUser {
+                        Button("해제", role: .destructive) { unblock(u.uid) }
+                    }
+                } message: {
+                    Text("\(selectedUser?.nickname ?? "사용자") 님의 차단을 해제하시겠어요?")
+                }
+
             }
-            .navigationTitle("차단된 사용자")
+            .navigationTitle("차단했던 사용자")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbarBackground(.ultraThinMaterial, for: .navigationBar)
+            .toolbarBackground(.visible, for: .navigationBar)
+            .toolbarColorScheme(.light, for: .navigationBar)
+            .tint(.white)
             .onAppear(perform: load)
             .refreshable { load() }
+
         }
 
         private func load() {
@@ -322,14 +328,15 @@ struct OptionView: View {
             if uids.isEmpty { isLoading = false; return }
 
             let db = Firestore.firestore()
-            // 닉네임을 살짝 붙여주자 (없으면 UID만 표기)
+
             Task {
                 do {
                     var tmp: [UserRow] = []
                     for uid in uids {
                         let snap = try await db.collection("users").document(uid).getDocument()
-                        let nick = (snap.get("nickname") as? String) ?? ""
-                        tmp.append(UserRow(uid: uid, nickname: nick))
+                        let nick  = (snap.get("nickname") as? String) ?? ""
+                        let photo = (snap.get("profileImageUrl") as? String)          // ← 사진 URL 함께 로드
+                        tmp.append(UserRow(uid: uid, nickname: nick, photoURL: photo))
                     }
                     await MainActor.run {
                         self.rows = tmp.sorted { $0.nickname.lowercased() < $1.nickname.lowercased() }
@@ -343,6 +350,7 @@ struct OptionView: View {
                 }
             }
         }
+
 
         private func unblock(_ uid: String) {
             Task {
@@ -363,9 +371,10 @@ struct OptionView: View {
         struct UserRow: Identifiable {
             let uid: String
             let nickname: String
+            let photoURL: String?
             var id: String { uid }
-            var initial: String { nickname.isEmpty ? "?" : String(nickname.prefix(1)) }
         }
+
     }
 
 }

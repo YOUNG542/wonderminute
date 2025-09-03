@@ -1,6 +1,36 @@
 import SwiftUI
 import FirebaseAuth
 import FirebaseFirestore
+import FirebaseStorage          // ⬅️ 사진 업로드
+import PhotosUI                 // ⬅️ 사진 선택(PhotosPicker)
+
+
+// MARK: - WonderMinute Theme
+extension Color {
+    static let wmPrimary = Color(red: 0.48, green: 0.38, blue: 1.0)   // 브랜드 보라색
+    static let wmBgTop   = Color(red: 0.41, green: 0.30, blue: 1.0)
+    static let wmBgBot   = Color(red: 0.67, green: 0.58, blue: 1.0)
+}
+
+struct WMFormModifier: ViewModifier {
+    func body(content: Content) -> some View {
+        content
+            .formStyle(.grouped)
+            .scrollContentBackground(.hidden)
+            .background(LinearGradient(colors: [.wmBgTop, .wmBgBot],
+                                       startPoint: .top, endPoint: .bottom))
+            .tint(Color.wmPrimary)
+            .toolbarBackground(.ultraThinMaterial, for: .navigationBar)
+            .toolbarBackground(.visible, for: .navigationBar)
+            .toolbarColorScheme(.light, for: .navigationBar)
+            .preferredColorScheme(.light)   // 라이트 고정
+    }
+}
+
+extension View {
+    func wonderMinuteForm() -> some View { modifier(WMFormModifier()) }
+}
+
 
 // MARK: - Enumerations
 
@@ -213,11 +243,21 @@ struct BlockSheetView: View {
         NavigationView {
             Form {
                 Section {
-                    Picker("사유", selection: $reason) {
-                        ForEach(BlockReason.allCases) { r in
-                            Text(r.rawValue).tag(r)
+                    Menu {
+                        Picker("", selection: $reason) {
+                            ForEach(BlockReason.allCases) { r in
+                                Text(r.rawValue).tag(r)
+                            }
+                        }
+                    } label: {
+                        HStack {
+                            Text("사유").foregroundStyle(.primary)   // 글자색 보강
+                            Spacer()
+                            Text(reason.rawValue)
+                                .foregroundStyle(.secondary)
                         }
                     }
+
                     TextField("추가 메모(선택)", text: $note)
                 } header: {
                     Text("차단 사유")
@@ -228,25 +268,22 @@ struct BlockSheetView: View {
                 } footer: {
                     Text("차단 시 서로 **매칭/통화/메시지 요청이 노출되지 않아요**.")
                 }
-
-
-                if let e = errorMsg {
-                    Section { Text(e).foregroundColor(.red) }
-                }
             }
             .navigationTitle("차단하기")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("취소") { dismiss() }
+                        .foregroundStyle(.primary)          // ← 버튼 색 명시
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button(submitting ? "처리 중…" : "확인") {
-                        submit()
-                    }
-                    .disabled(submitting)
+                    Button(submitting ? "처리 중…" : "확인") { submit() }
+                        .disabled(submitting)
+                        .foregroundStyle(Color.wmPrimary)       // ← 브랜드 보라색
                 }
             }
         }
+        .wonderMinuteForm()                                  // ← 원더미닛 테마 적용
+
     }
 
     private func submit() {
@@ -269,28 +306,43 @@ struct ReportSheetView: View {
     let roomId: String?
     let callElapsedSec: Int
     let onCompleted: () -> Void
-
+    
     @Environment(\.dismiss) private var dismiss
     @State private var type: ReportType = .harassment
     @State private var subtype: String = ""
     @State private var description: String = ""
     @State private var submitting = false
     @State private var errorMsg: String?
-
+    
+    @State private var pickedItems: [PhotosPickerItem] = []   // ⬅️ 선택된 포토 항목
+    @State private var images: [UIImage] = []                 // ⬅️ 미리보기/업로드용
+    @State private var uploadedURLs: [String] = []            // ⬅️ 업로드 결과(첨부)
+    
     var body: some View {
         NavigationView {
             Form {
+                // 1) 신고 유형
                 Section {
-                    Picker("유형", selection: $type) {
-                        ForEach(ReportType.allCases) { t in
-                            Text(t.rawValue).tag(t)
+                    Menu {
+                        Picker("", selection: $type) {
+                            ForEach(ReportType.allCases) { t in
+                                Text(t.rawValue).tag(t)
+                            }
+                        }
+                    } label: {
+                        HStack {
+                            Text("유형").foregroundStyle(.primary)
+                            Spacer()
+                            Text(type.rawValue).foregroundStyle(.secondary)
                         }
                     }
+
                     TextField("세부 유형(선택)", text: $subtype)
                 } header: {
                     Text("신고 유형")
                 }
 
+                // 2) 상세 설명
                 Section {
                     TextEditor(text: $description)
                         .frame(minHeight: 120)
@@ -300,47 +352,146 @@ struct ReportSheetView: View {
                     Text("허위 신고는 신고권 제한 등 제재를 받을 수 있어요. 보통 24시간 내 1차 검토됩니다.")
                 }
 
+                // 3) 자동 첨부(룸ID 비노출)
                 Section {
-                    HStack { Text("통화 경과"); Spacer(); Text("\(callElapsedSec)초").foregroundColor(.secondary) }
-                    if let roomId {
-                        HStack { Text("룸 ID"); Spacer(); Text(roomId).foregroundColor(.secondary).lineLimit(1) }
+                    HStack {
+                        Text("통화 경과")
+                        Spacer()
+                        Text("\(callElapsedSec)초").foregroundStyle(.secondary)
                     }
                 } header: {
                     Text("자동 첨부")
                 }
 
+                // 4) 증거 사진
+                Section {
+                    PhotosPicker(selection: $pickedItems,
+                                 maxSelectionCount: 5,
+                                 matching: .images) {
+                        HStack {
+                            Image(systemName: "photo.on.rectangle")
+                            Text(images.isEmpty ? "사진 선택 (최대 5장)" : "사진 추가 선택")
+                            Spacer()
+                        }
+                    }
 
+                    if !images.isEmpty {
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 12) {
+                                ForEach(Array(images.enumerated()), id: \.offset) { idx, img in
+                                    ZStack(alignment: .topTrailing) {
+                                        Image(uiImage: img)
+                                            .resizable()
+                                            .scaledToFill()
+                                            .frame(width: 72, height: 72)
+                                            .clipShape(RoundedRectangle(cornerRadius: 12))
+                                            .overlay(RoundedRectangle(cornerRadius: 12).stroke(.quaternary))
+
+                                        Button {
+                                            images.remove(at: idx)
+                                        } label: {
+                                            Image(systemName: "xmark.circle.fill")
+                                                .imageScale(.medium)
+                                                .foregroundStyle(.white, .black.opacity(0.6))
+                                        }
+                                        .offset(x: 6, y: -6)
+                                    }
+                                }
+                            }
+                            .padding(.vertical, 4)
+                        }
+                    }
+                } header: {
+                    Text("증거 사진(선택)")
+                }
+                .onChange(of: pickedItems) { items in
+                    Task {
+                        var newImgs: [UIImage] = []
+                        for item in items {
+                            if let data = try? await item.loadTransferable(type: Data.self),
+                               let img = UIImage(data: data) {
+                                newImgs.append(img)
+                            }
+                        }
+                        images.append(contentsOf: newImgs)
+                        pickedItems.removeAll()
+                    }
+                }
+
+                // 에러 표시
                 if let e = errorMsg {
                     Section { Text(e).foregroundColor(.red) }
                 }
             }
+
             .navigationTitle("신고하기")
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("취소") { dismiss() } }
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("취소") { dismiss() }
+                        .foregroundStyle(.primary)              // 버튼 기본색
+                }
                 ToolbarItem(placement: .confirmationAction) {
                     Button(submitting ? "제출 중…" : "제출") { submit() }
                         .disabled(submitting || description.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                        .foregroundStyle(Color.wmPrimary)        // 버튼 보라색
+                }
+            }
+        }
+        .wonderMinuteForm()                                    // ← 테마 적용
+
+    }
+    
+    private func submit() {
+        submitting = true
+        uploadAttachments(images) { urls in
+            SafetyCenter.shared.submitReport(
+                reportedUid: peerUid,
+                roomId: roomId,
+                callTimestampSec: callElapsedSec,
+                type: type, subtype: subtype.isEmpty ? nil : subtype,
+                description: description,
+                attachments: urls                        // ⬅️ 업로드된 파일 URL
+            ) { ok in
+                submitting = false
+                if ok {
+                    dismiss()
+                    onCompleted()
+                } else {
+                    errorMsg = "신고 제출에 실패했어요. 잠시 후 다시 시도해 주세요."
                 }
             }
         }
     }
+    
+    private func uploadAttachments(_ images: [UIImage], completion: @escaping ([String]) -> Void) {
+        guard !images.isEmpty else { completion([]); return }
 
-    private func submit() {
-        submitting = true
-        SafetyCenter.shared.submitReport(
-            reportedUid: peerUid,
-            roomId: roomId,
-            callTimestampSec: callElapsedSec,
-            type: type, subtype: subtype.isEmpty ? nil : subtype,
-            description: description
-        ) { ok in
-            submitting = false
-            if ok {
-                dismiss()
-                onCompleted()
-            } else {
-                errorMsg = "신고 제출에 실패했어요. 잠시 후 다시 시도해 주세요."
+        var urls: [String] = []
+        let group = DispatchGroup()
+        let storage = Storage.storage()
+
+        let uid = Auth.auth().currentUser?.uid ?? "unknown"
+        for (idx, img) in images.enumerated() {
+            group.enter()
+            let path = "report_attachments/\(uid)/\(Int(Date().timeIntervalSince1970))_\(idx).jpg"
+            let ref  = storage.reference().child(path)
+            let data = img.jpegData(compressionQuality: 0.8) ?? Data()
+
+            ref.putData(data) { _, err in
+                if err != nil {
+                    group.leave()
+                    return
+                }
+                ref.downloadURL { url, _ in
+                    if let u = url?.absoluteString { urls.append(u) }
+                    group.leave()
+                }
             }
         }
+
+        group.notify(queue: .main) { completion(urls) }
     }
+
 }
+
+

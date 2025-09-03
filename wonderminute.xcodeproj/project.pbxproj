@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		BE01B00E2E6408CA00A6890B /* SuspendedGateView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE01B00D2E6408CA00A6890B /* SuspendedGateView.swift */; };
 		BE0ABF6C2E46D5FF001268BD /* FunctionsAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE0ABF6B2E46D5FF001268BD /* FunctionsAPI.swift */; };
 		BE0ABF6F2E46E6CA001268BD /* AIAEC in Frameworks */ = {isa = PBXBuildFile; productRef = BE0ABF6E2E46E6CA001268BD /* AIAEC */; };
 		BE0ABF712E46E6CA001268BD /* AIAECLL in Frameworks */ = {isa = PBXBuildFile; productRef = BE0ABF702E46E6CA001268BD /* AIAECLL */; };
@@ -51,6 +52,7 @@
 		BE8B6AB82E545640002A9143 /* PhoneVerifyView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE8B6AB72E545640002A9143 /* PhoneVerifyView.swift */; };
 		BE8B6ABA2E547197002A9143 /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = BE8B6AB92E547197002A9143 /* GoogleService-Info.plist */; };
 		BE8B6ABC2E5769EE002A9143 /* CallDiag.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE8B6ABB2E5769EE002A9143 /* CallDiag.swift */; };
+		BE936FB62E66EC9B001FAA0F /* ChatRoomView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE936FB52E66EC9B001FAA0F /* ChatRoomView.swift */; };
 		BEA2E71B2E3D9870006C4F74 /* wonderminuteApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = BEA2E71A2E3D9870006C4F74 /* wonderminuteApp.swift */; };
 		BEA2E71F2E3D9872006C4F74 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = BEA2E71E2E3D9872006C4F74 /* Assets.xcassets */; };
 		BEA2E7232E3D9872006C4F74 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = BEA2E7222E3D9872006C4F74 /* Preview Assets.xcassets */; };
@@ -122,6 +124,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		BE01B00D2E6408CA00A6890B /* SuspendedGateView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SuspendedGateView.swift; sourceTree = "<group>"; };
 		BE0ABF6B2E46D5FF001268BD /* FunctionsAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FunctionsAPI.swift; sourceTree = "<group>"; };
 		BE0ABF942E46E918001268BD /* CallEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CallEngine.swift; sourceTree = "<group>"; };
 		BE0ABF962E46E936001268BD /* MatchWatcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MatchWatcher.swift; sourceTree = "<group>"; };
@@ -147,6 +150,7 @@
 		BE8B6AB72E545640002A9143 /* PhoneVerifyView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhoneVerifyView.swift; sourceTree = "<group>"; };
 		BE8B6AB92E547197002A9143 /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
 		BE8B6ABB2E5769EE002A9143 /* CallDiag.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CallDiag.swift; sourceTree = "<group>"; };
+		BE936FB52E66EC9B001FAA0F /* ChatRoomView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatRoomView.swift; sourceTree = "<group>"; };
 		BEA2E7172E3D9870006C4F74 /* wonderminute.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = wonderminute.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		BEA2E71A2E3D9870006C4F74 /* wonderminuteApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = wonderminuteApp.swift; sourceTree = "<group>"; };
 		BEA2E71E2E3D9872006C4F74 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -337,6 +341,8 @@
 				BEA954332E5FE2D800DA22D5 /* CounselorChatView.swift */,
 				BE485C5C2E6296AC0049F1AA /* SafetyCenter.swift */,
 				BE485C5E2E629F800049F1AA /* ReportedUsersMonitorView.swift */,
+				BE01B00D2E6408CA00A6890B /* SuspendedGateView.swift */,
+				BE936FB52E66EC9B001FAA0F /* ChatRoomView.swift */,
 			);
 			path = wonderminute;
 			sourceTree = "<group>";
@@ -519,6 +525,7 @@
 				BEE627562E41C2E000BE3D81 /* MatchedView.swift in Sources */,
 				BEA2E71B2E3D9870006C4F74 /* wonderminuteApp.swift in Sources */,
 				BEE627502E418F2200BE3D81 /* ProfileView.swift in Sources */,
+				BE01B00E2E6408CA00A6890B /* SuspendedGateView.swift in Sources */,
 				BEA2E74C2E3D9B36006C4F74 /* UserInfoView.swift in Sources */,
 				BEE5C0242E3DD8BC005310A7 /* RootView.swift in Sources */,
 				BE0ABF9B2E4A3A89001268BD /* Color.swift in Sources */,
@@ -546,6 +553,7 @@
 				BEE627542E41C26600BE3D81 /* MatchingManager.swift in Sources */,
 				BEE6274C2E418EF900BE3D81 /* MainTabView.swift in Sources */,
 				BE0ABF9F2E4C49A8001268BD /* CallSessionVM.swift in Sources */,
+				BE936FB62E66EC9B001FAA0F /* ChatRoomView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
