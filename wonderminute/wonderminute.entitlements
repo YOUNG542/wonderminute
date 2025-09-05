@@ -14,6 +14,8 @@
 	<array>
 		<string>applinks:talk-apps.kakao.com</string>
 	</array>
+	<key>com.apple.developer.usernotifications.communication</key>
+	<true/>
 	<key>com.apple.security.app-sandbox</key>
 	<true/>
 	<key>com.apple.security.files.user-selected.read-only</key>

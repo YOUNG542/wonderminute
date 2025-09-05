@@ -1,6 +1,7 @@
 import SwiftUI
 import FirebaseAuth
 import FirebaseFirestore
+import FirebaseFunctions
 
 struct ChatRoomView: View {
     let roomId: String
@@ -28,7 +29,7 @@ struct ChatRoomView: View {
     // ✅ 상대 읽음 시각 실시간 구독용
       @State private var otherReadAt: Timestamp?
       @State private var roomMetaListener: ListenerRegistration?
-    
+      @State private var otherTyping: Bool = false
    
     
      private func markRead() {
@@ -39,7 +40,7 @@ struct ChatRoomView: View {
              "unread": [myUid: 0]
          ], merge: true)
      }
-
+    private let functions = Functions.functions()
     private let db = Firestore.firestore()
     private var myUid: String { Auth.auth().currentUser?.uid ?? "unknown" }
     private var hasValidRoomId: Bool {
@@ -53,7 +54,11 @@ struct ChatRoomView: View {
                     .frame(width: 32, height: 32)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(otherNickname).font(.subheadline.bold())
-                    Text("대화 중").font(.caption2).foregroundStyle(.secondary)
+                    if otherTyping {
+                        Text("입력 중…").font(.caption2).foregroundStyle(.green)   // ✅ 입력 중 표시
+                    } else {
+                        Text("대화 중").font(.caption2).foregroundStyle(.secondary)
+                    }
                 }
                 Spacer()
             }
@@ -68,16 +73,37 @@ struct ChatRoomView: View {
             ScrollViewReader { proxy in
                 ScrollView {
                     LazyVStack(spacing: 0) {
-                        ForEach(messages) { m in
+                        ForEach(messages.indices, id: \.self) { idx in
+                            let m = messages[idx]
                             let showRead = (m.id == lastReadMyMessageId)
+                            let isMine = (m.senderId == myUid)
+
+                            // 이전/다음 참조
+                            let prev: ChatMessageLite? = (idx > 0) ? messages[idx - 1] : nil
+                            let next: ChatMessageLite? = (idx + 1 < messages.count) ? messages[idx + 1] : nil
+
+                            // 그룹 경계 계산
+                            let isFirstInGroup = !areGrouped(m, prev)
+                            let isLastInGroup  = !areGrouped(m, next)
+
+                            // 시각 텍스트
+                            let timeText = m.timestamp
+                                .map { ChatRoomView.timeFormatter.string(from: $0.dateValue()) }
+                                ?? ""
 
                             ChatBubbleRow(message: m,
-                                          isMine: m.senderId == myUid,
-                                          showReadReceipt: showRead)          // ✅ 전달
+                                          isMine: isMine,
+                                          showReadReceipt: showRead,
+                                          otherNickname: otherNickname,
+                                          otherPhotoURL: otherPhotoURL,
+                                          showAvatarAndName: !isMine && isFirstInGroup,
+                                          compactTop: !isFirstInGroup,
+                                          showTimestamp: isLastInGroup,
+                                          timeText: timeText)
                                 .id(m.id)
-                                .padding(.vertical, 2)
                                 .padding(.horizontal, 4)
                         }
+
 
 
                         // ✅ 바닥 센티넬: 보이면 atBottom=true, 사라지면 false
@@ -150,6 +176,13 @@ struct ChatRoomView: View {
                     .textFieldStyle(.roundedBorder)
                     .disabled(loading)
                     .focused($inputFocused)
+                    .onChange(of: text) { newValue in
+                        let roomRef = db.collection("chatRooms").document(roomId)
+                        let isTyping = !newValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                        roomRef.setData([
+                            "typing": [myUid: isTyping]
+                        ], merge: true)
+                    }
                 Button { send() } label: {
                     Text("전송").bold()
                 }
@@ -184,8 +217,14 @@ struct ChatRoomView: View {
                 roomMetaListener = db.collection("chatRooms").document(roomId)
                     .addSnapshotListener { snap, _ in
                         guard let data = snap?.data() else { return }
-                        if let map = data["readAt"] as? [String: Any] {
-                            // 상대 uid의 readAt만 추출
+
+                        // ✅ 상대방 입력 상태 추적
+                        if let typingMap = data["typing"] as? [String: Any],
+                           let flag = typingMap[otherUid] as? Bool {
+                            otherTyping = flag
+                        }
+
+                        if let map = data["readAt"] as? [String: Any] {                            // 상대 uid의 readAt만 추출
                             if let ts = map[otherUid] as? Timestamp {
                                 otherReadAt = ts
                             } else if let mv = map[otherUid] as? [String: Any],
@@ -309,93 +348,152 @@ struct ChatRoomView: View {
             }
             dbg("✅ send() setData success id=\(msgRef.documentID)")
 
-            roomRef.setData([
+            roomRef.updateData([
                 "lastMessage": content,
                 "lastTimestamp": now,
                 "lastTimestampServer": FieldValue.serverTimestamp(),
-                "readAt": [myUid: FieldValue.serverTimestamp()],            // 내 읽음 갱신
-                "unread": [myUid: 0, otherUid: FieldValue.increment(1.0)],  // ✅ 내 unread=0, 상대 unread+1
-                "leftAt.\(myUid)": FieldValue.delete()
-            ], merge: true) { e in
-
+                "readAt.\(myUid)": FieldValue.serverTimestamp(),
+                "unread.\(myUid)": 0,
+                "unread.\(otherUid)": FieldValue.increment(1.0),
+                FieldPath(["leftAt", myUid]): FieldValue.delete()   // ← 내 leftAt만 안전 삭제
+            ]) { e in
                 if let e = e {
                     dbg("⚠️ update room summary error: \(e.localizedDescription)")
                 } else {
                     dbg("✅ room summary updated")
+
+                    // ✅ Cloud Function 호출 → 상대방 푸시 알림 트리거
+                    let payload: [String: Any] = [
+                        "toUid": otherUid,
+                        "fromUid": myUid,
+                        "message": content,
+                        "roomId": roomId
+                    ]
+                    functions.httpsCallable("sendChatNotification").call(payload) { result, error in
+                        if let error = error {
+                            dbg("⚠️ push notify error: \(error.localizedDescription)")
+                        } else {
+                            dbg("✅ push notify success")
+                        }
+                    }
                 }
             }
             text = ""
         }
     }
     
-    // ✅ 새 나가기: participants 유지, 방 문서에 leftAt.{uid} 만 기록
-    // ✅ 둘 다 나가면 messages 삭제 후 room 문서 삭제
     private func performLeave() {
-        guard hasValidRoomId, myUid != "unknown" else { return }
+        guard hasValidRoomId, myUid != "unknown" else {
+            dbg("🚫 performLeave aborted - hasValidRoomId=\(hasValidRoomId) myUid=\(myUid)")
+            return
+        }
         isLeaving = true
         let roomRef = db.collection("chatRooms").document(roomId)
 
-        // 1) 내 leave 시각 기록
-        roomRef.setData([
-            "leftAt": [myUid: FieldValue.serverTimestamp()]
-        ], merge: true) { err in
+        dbg("🚪 performLeave() start myUid=\(myUid) roomId=\(roomId)")
+
+        // 1) 내 leave 시각 안전 기록 (맵의 특정 키만)
+        dbg("📝 updateData leftAt[\(myUid)]=serverTimestamp()")
+        roomRef.updateData([
+            FieldPath(["leftAt", myUid]): FieldValue.serverTimestamp()
+        ]) { err in
             if let err = err {
                 isLeaving = false
                 errMsg = "나가기 실패: \(err.localizedDescription)"
+                dbg("🔥 updateData leftAt error: \(err.localizedDescription)")
                 return
             }
-            // 2) 둘 다 나갔는지 확인 후 삭제
-            roomRef.getDocument { snap, e in
-                defer { isLeaving = false }
-                if let e = e { dbg("⚠️ leave check error: \(e.localizedDescription)"); dismiss(); return }
-                guard let data = snap?.data() else { dismiss(); return }
+            dbg("✅ updateData leftAt success. Fetching server snapshot…")
 
+            // 2) 서버 스냅샷으로 삭제 가능 여부 판단
+            roomRef.getDocument(source: .server) { snap, e in
+                defer { isLeaving = false }
+                if let e = e {
+                    dbg("🔥 getDocument(.server) error: \(e.localizedDescription)")
+                    cleanupAndDismiss()
+                    return
+                }
+                guard let snap = snap, let data = snap.data() else {
+                    dbg("⚠️ nil snap/data")
+                    cleanupAndDismiss()
+                    return
+                }
+
+                // 참여자 & leftAt 읽기
                 let participants = (data["participants"] as? [String]) ?? []
-                let lastTs = data["lastTimestamp"] as? Timestamp
                 let leftMap = data["leftAt"] as? [String: Any] ?? [:]
-                let leftTsForAll = participants.compactMap { uid in
+                let leftTsForAll: [Timestamp] = participants.compactMap { uid in
                     if let ts = leftMap[uid] as? Timestamp { return ts }
-                    if let m = leftMap[uid] as? [String: Any], let t = m["seconds"] as? Int64 { return Timestamp(seconds: t, nanoseconds: 0) }
+                    if let m = leftMap[uid] as? [String: Any], let sec = m["seconds"] as? Int64 {
+                        return Timestamp(seconds: sec, nanoseconds: 0)
+                    }
                     return nil
                 }
 
-                // 둘 다(모든 참가자) leftAt 존재 + 마지막 메시지가 두 사람이 나간 뒤에 생성되지 않음
+                // 🔑 정책: “둘 다 나갔으면 무조건 삭제”
                 let allLeft = leftTsForAll.count == participants.count
-                let maxLeft = leftTsForAll.max(by: { $0.dateValue() < $1.dateValue() })
-                let deletable = allLeft && (lastTs == nil || (maxLeft != nil && lastTs!.dateValue() <= maxLeft!.dateValue()))
 
-                if deletable {
-                    // messages 서브컬렉션 삭제(배치, 100개 단위)
-                    deleteMessagesThenRoom(roomRef: roomRef) { _ in
-                        dbg("🧹 room fully deleted: \(roomId)")
-                        dismiss()
+                dbg("""
+                🧮 Decision
+                  • allLeft=\(allLeft) (leftTsForAll.count=\(leftTsForAll.count), participants.count=\(participants.count))
+                """)
+
+                if allLeft {
+                    dbg("🧹 Deleting messages then room…")
+                    deleteMessagesThenRoom(roomRef: roomRef) { err in
+                        if let err = err {
+                            dbg("🔥 deleteMessagesThenRoom error: \(err.localizedDescription)")
+                        } else {
+                            dbg("✅ room fully deleted (in-room leave): \(roomId)")
+                        }
+                        cleanupAndDismiss()
                     }
                 } else {
-                    dismiss()
+                    dbg("↩️ Not deletable. Just dismiss.")
+                    cleanupAndDismiss()
                 }
             }
         }
     }
 
+            
+
+    private func cleanupAndDismiss() {
+        dbg("🧰 cleanupAndDismiss(): removing listeners & dismiss")
+        listener?.remove()
+        roomMetaListener?.remove()
+        dismiss()
+    }
+
+
     // 🔧 메시지 먼저 지운 뒤 room 삭제(간단 배치 반복)
     private func deleteMessagesThenRoom(roomRef: DocumentReference, completion: @escaping (Error?) -> Void) {
-        let msgs = roomRef.collection("messages").order(by: "timestamp").limit(to: 100)
-        msgs.getDocuments { snap, err in
-            if let err = err { completion(err); return }
-            guard let docs = snap?.documents, !docs.isEmpty else {
-                // 더 이상 메시지가 없으면 room 삭제
-                roomRef.delete(completion: completion)
-                return
+        roomRef.collection("messages").order(by: "timestamp").limit(to: 100)
+            .getDocuments { snap, err in
+                if let err = err {
+                    dbg("🔥 getDocuments for deletion error: \(err.localizedDescription)")
+                    completion(err); return
+                }
+                let count = snap?.documents.count ?? 0
+                dbg("🧽 deleting batch count=\(count)")
+                guard let docs = snap?.documents, !docs.isEmpty else {
+                    dbg("🗑️ no more messages. deleting room doc…")
+                    roomRef.delete(completion: completion)
+                    return
+                }
+                let batch = roomRef.firestore.batch()
+                docs.forEach { batch.deleteDocument($0.reference) }
+                batch.commit { e in
+                    if let e = e {
+                        dbg("🔥 batch commit error: \(e.localizedDescription)")
+                        completion(e); return
+                    }
+                    dbg("✅ batch commit success. Continue next page…")
+                    deleteMessagesThenRoom(roomRef: roomRef, completion: completion)
+                }
             }
-            let batch = roomRef.firestore.batch()
-            docs.forEach { batch.deleteDocument($0.reference) }
-            batch.commit { e in
-                if let e = e { completion(e); return }
-                // 남은 메시지 반복 삭제
-                deleteMessagesThenRoom(roomRef: roomRef, completion: completion)
-            }
-        }
     }
+
 
 
 
@@ -419,6 +517,52 @@ struct ChatRoomView: View {
         return messages
             .filter { $0.senderId == myUid && ($0.timestamp?.dateValue() ?? .distantPast) <= or }
             .last?.id
+    }
+
+    // ✅ ChatRoomView 안 아무 곳에 추가: 시각 포맷터
+    static let timeFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "ko_KR")
+        f.dateStyle = .none
+        f.timeStyle = .short          // 오후 3:14 형식
+        return f
+    }()
+    // 🔧 같은 발신자의 연속 메시지(3분 이내)인지 판정
+    private func areGrouped(_ a: ChatMessageLite?, _ b: ChatMessageLite?) -> Bool {
+        guard let a = a, let b = b,
+              a.senderId == b.senderId,
+              let t1 = a.timestamp?.dateValue(),
+              let t2 = b.timestamp?.dateValue()
+        else { return false }
+        return abs(t1.timeIntervalSince(t2)) <= 180   // 3분
+    }
+    // ✅ Firestore room 문서 덤프용 (원인 좁히기 핵심)
+    private func dumpRoom(_ data: [String: Any], context: String) {
+        let participants = (data["participants"] as? [String]) ?? []
+        let lastServer = data["lastTimestampServer"] as? Timestamp
+        let lastClient = data["lastTimestamp"] as? Timestamp
+        let leftMap = (data["leftAt"] as? [String: Any]) ?? [:]
+
+        var leftLines: [String] = []
+        for (uid, v) in leftMap {
+            if let ts = v as? Timestamp {
+                leftLines.append("   • \(uid): \(ts.dateValue())")
+            } else if let mv = v as? [String: Any], let sec = mv["seconds"] as? Int64 {
+                leftLines.append("   • \(uid): \(Date(timeIntervalSince1970: TimeInterval(sec))) (map)")
+            } else {
+                leftLines.append("   • \(uid): <unknown type \(type(of: v))>")
+            }
+        }
+
+        dbg("""
+        🔎 [\(context)] ROOM DUMP
+          • roomId=\(roomId)
+          • participants=\(participants)
+          • lastTimestampServer=\(String(describing: lastServer?.dateValue()))
+          • lastTimestamp(client)=\(String(describing: lastClient?.dateValue()))
+          • leftAt:
+        \(leftLines.joined(separator: "\n"))
+        """)
     }
 
 
@@ -448,39 +592,108 @@ struct ChatMessageLite: Identifiable {
 
 // MARK: - UI Row
 
+
+
 private struct ChatBubbleRow: View {
     let message: ChatMessageLite
     let isMine: Bool
-    var showReadReceipt: Bool = false   // ✅ 추가 기본값
+    var showReadReceipt: Bool = false
+    var otherNickname: String = ""
+    var otherPhotoURL: String? = nil
+
+    // 🔹 새 파라미터
+    var showAvatarAndName: Bool = true   // 상대방 연속 메시지면 false
+    var compactTop: Bool = false         // 연속이면 위 간격 줄임
+    var showTimestamp: Bool = false      // 묶음 마지막에만 표시
+    var timeText: String = ""            // 포맷된 시각 텍스트
 
     var body: some View {
-        VStack(alignment: isMine ? .trailing : .leading, spacing: 2) {
-            HStack {
-                if isMine { Spacer() }
-                Text(message.content)
-                    .padding(.vertical, 8)
-                    .padding(.horizontal, 12)
-                    .background(isMine ? Color.white.opacity(0.9) : Color.white.opacity(0.2))
-                    .foregroundStyle(isMine ? .black : .white)
-                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 14)
-                            .stroke(.white.opacity(0.15), lineWidth: 1)
-                    )
-                if !isMine { Spacer() }
+        VStack(alignment: isMine ? .trailing : .leading, spacing: 4) {
+
+            // ===== 상대 메시지 =====
+            if !isMine {
+                HStack(alignment: .top, spacing: 8) {
+                    if showAvatarAndName {
+                        Avatar(urlString: otherPhotoURL, fallback: otherNickname)
+                            .frame(width: 28, height: 28)
+                            .contentShape(Circle())
+                    } else {
+                        // 아바타 공간만큼 투명 spacer → 버블 정렬 유지
+                        Color.clear.frame(width: 28, height: 28)
+                    }
+
+                    VStack(alignment: .leading, spacing: compactTop ? 2 : 4) {
+                        if showAvatarAndName {
+                            Text(otherNickname)
+                                .font(.caption2).bold()
+                                .foregroundStyle(.white.opacity(0.85))
+                        }
+                        Text(message.content)
+                            .padding(.vertical, 8)
+                            .padding(.horizontal, 12)
+                            .background(Color.white.opacity(0.2))
+                            .foregroundStyle(.white)
+                            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 14)
+                                    .stroke(.white.opacity(0.15), lineWidth: 1)
+                            )
+                    }
+                    Spacer()
+                }
+                .padding(.top, compactTop ? 2 : 8)
+
+            // ===== 내 메시지 =====
+            } else {
+                HStack {
+                    Spacer()
+                    Text(message.content)
+                        .padding(.vertical, 8)
+                        .padding(.horizontal, 12)
+                        .background(Color.white.opacity(0.9))
+                        .foregroundStyle(.black)
+                        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 14)
+                                .stroke(.white.opacity(0.15), lineWidth: 1)
+                        )
+                }
+                .padding(.top, compactTop ? 2 : 8)
+
+                if showReadReceipt {
+                    Text("읽음")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 6)
+                }
             }
-            // ✅ 내 마지막 메시지에만 "읽음" 표시
-            if isMine && showReadReceipt {
-                Text("읽음")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, 6)
+
+            // ===== 시각 표시: 묶음의 마지막에서만 =====
+            if showTimestamp && !timeText.isEmpty {
+                HStack {
+                    if isMine {
+                        Spacer()
+                        Text(timeText)
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                            .padding(.trailing, 4)
+                    } else {
+                        Text(timeText)
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                            .padding(.leading, 40) // 아바타 자리만큼 띄움
+                        Spacer()
+                    }
+                }
+                .padding(.top, 2)
             }
+
         }
-        .padding(.vertical, 2)
         .padding(.horizontal, 4)
     }
 }
+
+
 
 
 extension ChatMessageLite {

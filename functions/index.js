@@ -1043,16 +1043,28 @@ async function sendFcmToUid(uid, payload, { dryRun = false } = {}) {
   if (!tokens.length) return;
 
   const IOS_BUNDLE_ID = "com.yeongdaekim.wonderminute";
-  const apns = {
-    headers: {
-      "apns-topic": IOS_BUNDLE_ID,
-      "apns-push-type": "alert",
-      "apns-priority": "10",
-    },
-    payload: { aps: {} },
-  };
+const apns = {
+  headers: {
+    "apns-topic": IOS_BUNDLE_ID,
+    "apns-push-type": "alert",
+    "apns-priority": "10",
+  },
+  payload: {
+    aps: {
+      "mutable-content": 1,  // 🔑 Service Extension 실행
+      "content-available": 0,
+      "sound": "default",
+    }
+  },
+};
 
-  const request = { tokens, apns, ...payload };
+// threadId 있으면 iOS가 같은 스레드로 묶음
+if (payload?.data?.threadId) {
+  apns.payload.aps["thread-id"] = payload.data.threadId;
+}
+
+const request = { tokens, apns, ...payload };
+
 
   let resp;
   try {
@@ -1108,4 +1120,130 @@ async function sendFcmToUid(uid, payload, { dryRun = false } = {}) {
     db.collection("users").doc(uid).collection("fcmTokens").doc(tok).delete().catch(()=>{})
   ));
 }
+
+// ------------------ 개별 채팅 푸시알림 (Callable) ------------------
+exports.sendChatNotification = onCall(async (req) => {
+  const ctx = req.auth;
+  if (!ctx) throw new Error("unauthenticated");
+
+  let { toUid, fromUid, message, roomId, senderName, senderPhotoURL } = req.data || {};
+  if (!toUid || !fromUid || !message || !roomId) throw new Error("missing params");
+
+  // ▶︎ 보낸 사람 프로필 보강 (클라가 안 줘도 동작)
+  if (!senderName || !senderPhotoURL) {
+    try {
+      const fromSnap = await admin.firestore().collection("users").doc(fromUid).get();
+      const d = fromSnap.exists ? (fromSnap.data() || {}) : {};
+      // 프로젝트에서 쓰는 키 이름에 맞춰 아래 후보들을 정리하세요.
+      senderName     = senderName     || d.nickname || d.displayName || d.name || "";
+      senderPhotoURL = senderPhotoURL || d.profileImageUrl || d.photoURL || d.avatarUrl || "";
+    } catch (_) {
+      // 조회 실패해도 무시 (기본값으로 진행)
+    }
+  }
+
+  try {
+    await sendFcmToUid(toUid, {
+      notification: {
+        title: senderName || "새 메시지",
+        body: message.slice(0, 120),
+      },
+      data: {
+        kind: "CHAT_NEW_MESSAGE",
+        roomId,
+        fromUid,
+
+        // Service Extension에서 쓰는 키들
+        threadId: roomId,
+        senderName: senderName || "",
+        senderPhotoURL: senderPhotoURL || "",
+        message: message.slice(0, 500),
+      },
+    });
+    return { ok: true };
+  } catch (e) {
+    throw new Error("push_failed");
+  }
+});
+
+// ===== [ADD] chatRooms/{roomId} 하위 messages 삭제 후 방 문서 삭제 =====
+async function deleteChatRoomCompletely(roomId) {
+  const roomRef = db.collection("chatRooms").doc(roomId);
+
+  // 메시지 페이징 삭제 (타임스탬프 정렬 기준, 200개씩)
+  while (true) {
+    const page = await roomRef.collection("messages")
+      .orderBy("timestamp")
+      .limit(200)
+      .get();
+
+    if (page.empty) break;
+
+    const batch = db.batch();
+    page.docs.forEach((d) => batch.delete(d.ref));
+    await batch.commit();
+  }
+
+  // 마지막으로 방 문서 삭제 (idempotent)
+  await roomRef.delete().catch(() => {});
+}
+
+// ===== [ADD] leftAt가 모든 참가자에게 기록되면 방을 서버에서 삭제 =====
+exports.onChatRoomLeftAtUpdate = onDocumentWritten("chatRooms/{roomId}", async (event) => {
+  const before = event.data?.before?.data() || null;
+  const after  = event.data?.after?.data()  || null;
+
+  // 삭제된 경우나 신설 직후엔 패스
+  if (!after) return;
+
+  // 참가자 배열: 프로젝트에 따라 'participants' 또는 'users' 중 하나 사용
+  const participants =
+    (Array.isArray(after.participants) && after.participants.length > 0)
+      ? after.participants
+      : (Array.isArray(after.users) ? after.users : []);
+
+  if (participants.length === 0) return;
+
+  const leftMap = after.leftAt || {};
+  const allLeft = participants.every((uid) => {
+    const v = leftMap?.[uid];
+    if (!v) return false;
+    // Timestamp거나 {seconds:...} 형태면 true
+    if (typeof v?.toMillis === "function") return true;
+    if (typeof v === "object" && v.seconds) return true;
+    return false;
+  });
+
+  if (!allLeft) return;
+
+  // 직전(before)에는 allLeft가 아니었고, 지금(after)은 allLeft면 → 이번 변동에서 조건 성립
+  const wasAllLeftBefore = (() => {
+    if (!before) return false;
+    const bParts =
+      (Array.isArray(before.participants) && before.participants.length > 0)
+        ? before.participants
+        : (Array.isArray(before.users) ? before.users : participants);
+    const bLeft = before.leftAt || {};
+    return bParts.every((uid) => {
+      const v = bLeft?.[uid];
+      if (!v) return false;
+      if (typeof v?.toMillis === "function") return true;
+      if (typeof v === "object" && v.seconds) return true;
+      return false;
+    });
+  })();
+
+  if (wasAllLeftBefore) {
+    // 이미 전 상태에서도 모두 나간 걸로 보였다면(리트리거나 중복 트리거) 굳이 또 안 함
+    return;
+  }
+
+  try {
+    console.log(`[chatRooms] all participants left → deleting room=${event.params.roomId}`);
+    await deleteChatRoomCompletely(event.params.roomId);
+    console.log(`[chatRooms] deleted room=${event.params.roomId}`);
+  } catch (e) {
+    console.error(`[chatRooms] delete failed room=${event.params.roomId}`, e);
+  }
+});
 

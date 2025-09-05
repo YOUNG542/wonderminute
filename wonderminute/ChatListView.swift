@@ -8,23 +8,23 @@ struct ChatListView: View {
     @State private var loading = true
     @State private var error: String?
     @State private var listener: ListenerRegistration?
-
+    
     @State private var pushChat = false
     @State private var activeRoomId: String?
     @State private var activeOtherNickname: String = ""
     @State private var activeOtherPhotoURL: String?
     @State private var activeOtherUid: String = ""
-
+    
     @State private var confirmLeaveRoomId: String?
-
- 
-     private let db = Firestore.firestore()
-     private var myUid: String { Auth.auth().currentUser?.uid ?? "" }
+    
+    
+    private let db = Firestore.firestore()
+    private var myUid: String { Auth.auth().currentUser?.uid ?? "" }
     
     var body: some View {
         ZStack {
             GradientBackground().ignoresSafeArea()
-
+            
             List {
                 // programmatic navigation anchor
                 NavigationLink(isActive: $pushChat) {
@@ -39,10 +39,10 @@ struct ChatListView: View {
                         }
                     }
                 } label: { EmptyView() }
-                .frame(width: 0, height: 0)
-                .hidden()
-
-
+                    .frame(width: 0, height: 0)
+                    .hidden()
+                
+                
                 Section(header: Text("최근 채팅").font(.headline)) {
                     if loading {
                         HStack {
@@ -52,29 +52,29 @@ struct ChatListView: View {
                         }
                         .listRowBackground(Color.clear)
                     }
-
+                    
                     if let error {
                         Text(error)
                             .foregroundStyle(.red)
                             .listRowBackground(Color.clear)
                     }
-
+                    
                     if rows.isEmpty && !loading && error == nil {
                         Text("최근 채팅이 없습니다.")
                             .foregroundStyle(.secondary)
                             .listRowBackground(Color.clear)
                     }
-
+                    
                     ForEach(rows) { r in
                         Button {
                             // 이전 상태 초기화
                             pushChat = false
                             activeRoomId = nil
-
+                            
                             activeOtherNickname = r.otherNickname
                             activeOtherPhotoURL = r.otherPhotoURL
                             activeOtherUid = r.otherUid
-
+                            
                             DispatchQueue.main.async {
                                 activeRoomId = r.roomId  // 먼저 세팅
                                 pushChat = !r.roomId.isEmpty
@@ -83,17 +83,23 @@ struct ChatListView: View {
                             HStack(spacing: 12) {
                                 Avatar(urlString: r.otherPhotoURL, fallback: r.otherNickname)
                                     .frame(width: 36, height: 36)
-
+                                
                                 VStack(alignment: .leading, spacing: 4) {
                                     Text(r.otherNickname)
                                         .font(.subheadline).bold()
                                         .foregroundStyle(.white)
-                                    Text(r.lastMessage ?? "대화를 시작해 보세요")
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                        .lineLimit(1)
+                                    if r.isOtherTyping {
+                                        Text("입력 중…")
+                                            .font(.caption)
+                                            .foregroundStyle(.green)
+                                    } else {
+                                        Text(r.lastMessage ?? "대화를 시작해 보세요")
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                            .lineLimit(1)
+                                    }
                                 }
-                                Spacer()
+                                Spacer(minLength: 0)
                                 VStack(alignment: .trailing, spacing: 6) {
                                     if let ts = r.lastTimestamp?.dateValue() {
                                         Text(ts.formatted(date: .omitted, time: .shortened))
@@ -109,10 +115,13 @@ struct ChatListView: View {
                                             .foregroundStyle(.white)
                                     }
                                 }
-
                             }
                             .padding(.vertical, 4)
+                            // 🔑 행 전체를 히트영역으로 확장
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .contentShape(Rectangle())
                         }
+                        
                         .buttonStyle(.plain)
                         .listRowBackground(Color.clear)
                         // ✅ 스와이프 액션: 쓰레기통 → 방 나가기
@@ -123,7 +132,7 @@ struct ChatListView: View {
                                 Label("나가기", systemImage: "trash")
                             }
                         }
-
+                        
                     }
                 }
             }
@@ -138,7 +147,7 @@ struct ChatListView: View {
         .onDisappear {
             listener?.remove()
         }
-
+        
         // ✅ 방 나가기 확인 알림
         .alert("채팅방 나가기", isPresented: .constant(confirmLeaveRoomId != nil)) {
             Button("취소", role: .cancel) { confirmLeaveRoomId = nil }
@@ -151,12 +160,12 @@ struct ChatListView: View {
         } message: {
             Text("이 채팅방에서 나가시겠습니까?")
         }
-
+        
     }
-
-
+    
+    
     // MARK: - Firestore
-
+    
     private func subscribe() {
         guard !myUid.isEmpty else {
             self.error = "로그인이 필요합니다."
@@ -166,7 +175,7 @@ struct ChatListView: View {
         loading = true
         error = nil
         listener?.remove()
-
+        
         listener = db.collection("chatRooms")
             .whereField("participants", arrayContains: myUid)
             .order(by: "lastTimestamp", descending: true)
@@ -176,25 +185,45 @@ struct ChatListView: View {
                     self.loading = false
                     return
                 }
-
+                
                 // ✅ 수동 파싱
                 let rooms: [ChatRoomLite] = snap?.documents.compactMap { ChatRoomLite(doc: $0) } ?? []
                 let otherUids = rooms.compactMap { room in
                     room.participants.first(where: { $0 != myUid })
                 }
-
+                
                 fetchProfiles(uids: otherUids) { profiles in
                     let mapped = rooms
+                        // ✅ 1) 내가 나가기 전의 메시지가 있어야만 보이도록
                         .filter { room in
-                            if let myLeft = room.leftAt[myUid], let last = room.lastTimestamp {
-                                return last.dateValue() > myLeft.dateValue()
-                            }
-                            return true
+                            let last = room.lastTimestampServer ?? room.lastTimestamp
+                            let myLeft = room.leftAt[myUid]
+                            let decision: Bool = {
+                                if let myLeft, let last {
+                                    return last.dateValue() > myLeft.dateValue()
+                                } else if room.lastMessage == nil {
+                                    return false
+                                } else {
+                                    return true
+                                }
+                            }()
+
+                            log("""
+                            🔎 FILTER room=\(room.id)
+                              • lastServer=\(String(describing: room.lastTimestampServer?.dateValue()))
+                              • lastClient=\(String(describing: room.lastTimestamp?.dateValue()))
+                              • usedLast=\(String(describing: last?.dateValue()))
+                              • myLeft=\(String(describing: myLeft?.dateValue()))
+                              • lastMessage=\(String(describing: room.lastMessage))
+                              • => keep=\(decision)
+                            """)
+                            return decision
                         }
                         .map { room -> ChatListRow in
                             let other = room.participants.first(where: { $0 != myUid }) ?? ""
                             let p = profiles[other]
-                            let unread = room.unread[myUid] ?? 0        // ✅ 미읽음 수
+                            let unread = room.unread[myUid] ?? 0
+                            let isTyping = room.typing[other] ?? false
                             return ChatListRow(
                                 id: room.id,
                                 roomId: room.id,
@@ -202,28 +231,30 @@ struct ChatListView: View {
                                 otherNickname: p?.nickname ?? "(알 수 없음)",
                                 otherPhotoURL: p?.photoURL,
                                 lastMessage: room.lastMessage,
-                                lastTimestamp: room.lastTimestamp,
-                                unreadCount: unread                      // ✅ 추가
+                                // ✅ 리스트의 시각 표시에 무엇을 쓰는지 명확히
+                                lastTimestamp: room.lastTimestampServer ?? room.lastTimestamp,
+                                unreadCount: unread,
+                                isOtherTyping: isTyping
                             )
                         }
 
                     self.rows = mapped
-
                     self.loading = false
-
+                    log("📥 subscribe done. rows.count=\(mapped.count)")
                 }
+
             }
     }
-
+    
     /// users/{uid} 프로필 일괄 조회 (IN 쿼리, 10개씩)
     private func fetchProfiles(uids: [String], completion: @escaping ([String: UserProfileLight]) -> Void) {
         let uniq = Array(Set(uids)).filter { !$0.isEmpty }
         guard !uniq.isEmpty else { completion([:]); return }
-
+        
         var result: [String: UserProfileLight] = [:]
         let chunks = uniq.chunked(into: 10)
         let group = DispatchGroup()
-
+        
         for c in chunks {
             group.enter()
             db.collection("users")
@@ -234,35 +265,50 @@ struct ChatListView: View {
                     for d in docs {
                         let data = d.data()
                         let nick = (data["nickname"] as? String) ?? "(알 수 없음)"
-                        let photo = data["ProfileImageUrl"] as? String
+                        
+                        // 🔧 다양한 키 이름을 모두 허용 (저장 스키마 차이 대응)
+                        let photo = (data["photoURL"] as? String)
+                        ?? (data["photoUrl"] as? String)
+                        ?? (data["profileImageUrl"] as? String)
+                        ?? (data["ProfileImageUrl"] as? String)   // 기존 키도 마지막에 고려
+                        
                         result[d.documentID] = UserProfileLight(id: d.documentID, nickname: nick, photoURL: photo)
+                        
                     }
                 }
         }
         group.notify(queue: .main) { completion(result) }
     }
     
-    // ✅ 리스트에서의 나가기: 방 문서에 leftAt.{uid} 기록 (participants 유지)
-    // ✅ 리스트에서의 나가기: leftAt 기록 + (둘 다 나간 상태면) 메시지→방 삭제
     private func leaveRoom(roomId: String) {
         guard !myUid.isEmpty else { return }
         let roomRef = db.collection("chatRooms").document(roomId)
 
+        log("🚪 leaveRoom start myUid=\(myUid) roomId=\(roomId)")
         // 1) 내 leave 시각 기록
-        roomRef.setData(["leftAt": [myUid: FieldValue.serverTimestamp()]], merge: true) { err in
+        log("📝 setData leftAt.\(myUid)=serverTimestamp() (merge:true)")
+
+        log("🚪 leaveRoom start myUid=\(myUid) roomId=\(roomId)")
+
+        // 1) 내 leave 시각 안전 기록
+        log("📝 updateData leftAt[\(myUid)]=serverTimestamp()")
+        roomRef.updateData([
+            FieldPath(["leftAt", myUid]): FieldValue.serverTimestamp()
+        ]) { err in
             if let err = err {
                 self.error = "방 나가기 실패: \(err.localizedDescription)"
+                log("🔥 updateData leftAt error: \(err.localizedDescription)")
                 return
             }
-            // 2) 둘 다 나갔는지 확인 후 삭제
-            roomRef.getDocument { snap, e in
-                if let e = e { print("leave check error: \(e.localizedDescription)"); return }
-                guard let data = snap?.data() else { return }
+            log("✅ updateData leftAt success. Fetching server snapshot…")
+
+            // 2) 둘 다 나갔는지 확인 후 삭제 (서버 스냅샷)
+            roomRef.getDocument(source: .server) { snap, e in
+                if let e = e { log("🔥 getDocument(.server) error: \(e.localizedDescription)"); return }
+                guard let snap = snap, let data = snap.data() else { log("⚠️ nil snap/data"); return }
 
                 let participants = (data["participants"] as? [String]) ?? []
-                let lastTs = data["lastTimestamp"] as? Timestamp
                 let leftMap = data["leftAt"] as? [String: Any] ?? [:]
-
                 let leftTsForAll: [Timestamp] = participants.compactMap { uid in
                     if let ts = leftMap[uid] as? Timestamp { return ts }
                     if let m = leftMap[uid] as? [String: Any], let sec = m["seconds"] as? Int64 {
@@ -272,17 +318,34 @@ struct ChatListView: View {
                 }
 
                 let allLeft = leftTsForAll.count == participants.count
-                let maxLeft = leftTsForAll.max(by: { $0.dateValue() < $1.dateValue() })
-                let deletable = allLeft && (lastTs == nil || (maxLeft != nil && lastTs!.dateValue() <= maxLeft!.dateValue()))
 
-                if deletable {
+                log("""
+                🧮 Decision
+                  • allLeft=\(allLeft) (leftTsForAll.count=\(leftTsForAll.count), participants.count=\(participants.count))
+                """)
+
+                if allLeft {
+                    log("🧹 Deleting messages then room…")
                     deleteMessagesThenRoom(roomRef: roomRef) { err in
-                        if let err = err { print("delete room error: \(err.localizedDescription)") }
+                        if let err = err { log("🔥 deleteMessagesThenRoom error: \(err.localizedDescription)") }
+                        else { log("✅ room fully deleted (from list): \(roomId)") }
                     }
+                } else {
+                    log("↩️ Not deletable yet.")
                 }
             }
         }
+
+        }
     }
+
+    // ✅ 단순 로그 유틸 (파일/라인+시간 포함 필요 시 확장 가능)
+    private func log(_ s: String,
+                     file: String = #fileID, line: Int = #line) {
+        print("📒[ChatListView] \(s) (\(file):\(line))")
+    }
+
+
     
     // 🔧 메시지 먼저 지우고 방 삭제(100개씩 반복)
     private func deleteMessagesThenRoom(roomRef: DocumentReference, completion: @escaping (Error?) -> Void) {
@@ -306,8 +369,7 @@ struct ChatListView: View {
 
 
 
-  
-}
+
 
 // MARK: - 수동 파싱용 모델
 
@@ -316,9 +378,11 @@ struct ChatRoomLite {
     let participants: [String]
     let lastMessage: String?
     let lastTimestamp: Timestamp?
+    let lastTimestampServer: Timestamp?   // ✅ 추가
     let createdAt: Timestamp?
     let leftAt: [String: Timestamp]
-    let unread: [String: Int]                 // ✅ 추가
+    let unread: [String: Int]
+    let typing: [String: Bool]
 
     init?(doc: QueryDocumentSnapshot) {
         let data = doc.data()
@@ -327,8 +391,10 @@ struct ChatRoomLite {
         self.participants = participants
         self.lastMessage = data["lastMessage"] as? String
         self.lastTimestamp = data["lastTimestamp"] as? Timestamp
+        self.lastTimestampServer = data["lastTimestampServer"] as? Timestamp   // ✅
         self.createdAt = data["createdAt"] as? Timestamp
 
+        // leftAt
         if let raw = data["leftAt"] as? [String: Any] {
             var map: [String: Timestamp] = [:]
             for (k, v) in raw {
@@ -343,6 +409,7 @@ struct ChatRoomLite {
             self.leftAt = [:]
         }
 
+        // unread ✅ 반드시 초기화 필요
         if let raw = data["unread"] as? [String: Any] {
             var m: [String: Int] = [:]
             for (k, v) in raw {
@@ -353,8 +420,20 @@ struct ChatRoomLite {
         } else {
             self.unread = [:]
         }
+
+        // typing
+        if let raw = data["typing"] as? [String: Any] {
+            var t: [String: Bool] = [:]
+            for (k, v) in raw {
+                if let b = v as? Bool { t[k] = b }
+            }
+            self.typing = t
+        } else {
+            self.typing = [:]
+        }
     }
 }
+
 
 
 
@@ -367,6 +446,7 @@ struct ChatListRow: Identifiable {
     let lastMessage: String?
     let lastTimestamp: Timestamp?
     let unreadCount: Int                // ✅ 추가
+    let isOtherTyping: Bool
 }
 
 
