@@ -42,7 +42,7 @@ struct LoginView: View {
 
                 Text("지금 연결을 시작해보세요")
                     .font(.title3.bold())
-                    .foregroundColor(.white)
+                    .foregroundColor(AppTheme.textPrimary)
                     .opacity(appearLogo ? 1 : 0)
                     .offset(y: appearLogo ? 0 : 6)
                     .animation(.easeOut(duration: 0.25).delay(0.05), value: appearLogo)
@@ -61,6 +61,7 @@ struct LoginView: View {
                         .frame(maxWidth: .infinity, minHeight: 52)
                         .background(Color.yellow)
                         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                        .shadow(color: .black.opacity(0.12), radius: 6, y: 3)
                     }
                     .padding(.horizontal, 24)
 
@@ -145,6 +146,8 @@ struct LoginView: View {
                         .frame(height: 52)
                         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
                         .padding(.horizontal, 24)
+                        .shadow(color: .black.opacity(0.12), radius: 6, y: 3)
+
                     }
                 }
                 .opacity(appearButtons ? 1 : 0)
@@ -444,7 +447,7 @@ fileprivate struct LoginAppIconCard: View {
     var body: some View {
         ZStack {
             RoundedRectangle(cornerRadius: corner, style: .continuous)
-                .fill(Color.white)
+                .fill(Color(red: 1.00, green: 0.99, blue: 0.97)) // 따뜻한 화이트
                 .frame(width: cardSize, height: cardSize)
                 .shadow(color: .black.opacity(0.18), radius: 14, y: 10)
                 .overlay(
@@ -460,10 +463,14 @@ fileprivate struct LoginAppIconCard: View {
 
             RoundedRectangle(cornerRadius: corner + 4, style: .continuous)
                 .strokeBorder(
-                    LinearGradient(colors: [Color.white.opacity(0.7), .clear],
-                                   startPoint: .topLeading, endPoint: .bottomTrailing),
+                    LinearGradient(colors: [
+                        Color.white.opacity(0.7),
+                        AppTheme.pink.opacity(0.35),
+                        AppTheme.peach.opacity(0.0)
+                    ], startPoint: .topLeading, endPoint: .bottomTrailing),
                     lineWidth: 4
                 )
+
                 .frame(width: cardSize + 20, height: cardSize + 20)
                 .blur(radius: 6)
                 .opacity(glow ? 0.9 : 0.4)
@@ -488,8 +495,9 @@ fileprivate struct LoadingOverlay: View {
                 // 로고 + 링 스피너
                 ZStack {
                     Circle()
-                        .fill(Color.white.opacity(0.09))
+                        .fill(AppTheme.peach.opacity(0.12))
                         .frame(width: 74, height: 74)
+
 
                     // 회전 링
                     Circle()
@@ -552,22 +560,21 @@ fileprivate struct ConsentNotice: View {
             // 1줄: 링크 포함
             HStack(spacing: 6) {
                 Text("회원가입 시")
-                    .foregroundColor(.white.opacity(0.85))
-
+                    .foregroundColor(AppTheme.textSecondary)
                 Button(action: { showPrivacy = true }) {
                     Text("개인정보처리방침")
                         .underline()
-                        .foregroundColor(.white)
+                        .foregroundColor(AppTheme.textPrimary)
                 }
                 .buttonStyle(.plain)
 
                 Text("및")
-                    .foregroundColor(.white.opacity(0.85))
+                    .foregroundColor(AppTheme.textSecondary)
 
                 Button(action: { showTerms = true }) {
                     Text("이용약관")
                         .underline()
-                        .foregroundColor(.white)
+                        .foregroundColor(AppTheme.textPrimary)
                 }
                 .buttonStyle(.plain)
             }
@@ -578,7 +585,7 @@ fileprivate struct ConsentNotice: View {
 
             // 2줄: 문장 마무리
             Text("에 동의하신 것으로 간주됩니다.")
-                .foregroundColor(.white.opacity(0.85))
+                .foregroundColor(AppTheme.textSecondary)
                 .frame(maxWidth: .infinity)
                 .multilineTextAlignment(.center)
         }

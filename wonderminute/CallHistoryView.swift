@@ -169,9 +169,10 @@ struct CallHistoryView: View {
                     Group {
                         if let rid = activeRoomId, !rid.isEmpty {
                             ChatRoomView(roomId: rid,
-                                         otherNickname: activeOtherNickname,
-                                         otherPhotoURL: activeOtherPhotoURL,
-                                         otherUid: activeOtherUid)
+                                         otherUid: activeOtherUid,
+                                         initialNickname: activeOtherNickname,          // String
+                                         initialPhotoURL: activeOtherPhotoURL)          // String?
+
                         } else {
                             EmptyView()
                         }

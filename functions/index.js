@@ -887,11 +887,22 @@ exports.deleteSelf = onCall(async (req) => {
   // 1) Auth 계정 삭제 (Admin → 최근로그인 제약 없음)
   await admin.auth().deleteUser(uid);
 
-  // 2) Firestore/Storage 정리 (Auth 삭제 이후, 실패해도 무시)
+  // 2-a) users/{uid} 삭제 (실패 무시)
   try {
     await userRef.delete();
   } catch (_) {}
 
+  // 2-b) 🔥 externalIndex에서 이 uid를 가리키는 모든 문서 삭제 (카카오/애플 바인딩 제거)
+  try {
+    const exSnap = await db.collection("externalIndex").where("uid", "==", uid).get();
+    if (!exSnap.empty) {
+      const batch = db.batch();
+      exSnap.forEach(doc => batch.delete(doc.ref));
+      await batch.commit();
+    }
+  } catch (_) {}
+
+  // 2-c) 프로필 이미지 파일 정리 (실패 무시)
   try {
     if (url) {
       // gs:// or https:// 둘 다 파싱
@@ -913,6 +924,7 @@ exports.deleteSelf = onCall(async (req) => {
 
   return { ok: true };
 });
+
 
 // ================== [ 상담 채팅 ] ==================
 

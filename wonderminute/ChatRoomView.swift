@@ -5,9 +5,22 @@ import FirebaseFunctions
 
 struct ChatRoomView: View {
     let roomId: String
-    let otherNickname: String
-    let otherPhotoURL: String?
     let otherUid: String
+    let initialNickname: String
+    let initialPhotoURL: String?
+
+    @State private var displayNickname: String
+    @State private var displayPhotoURL: String?
+
+    init(roomId: String, otherUid: String, initialNickname: String, initialPhotoURL: String?) {
+        self.roomId = roomId
+        self.otherUid = otherUid
+        self.initialNickname = initialNickname
+        self.initialPhotoURL = initialPhotoURL
+        _displayNickname = State(initialValue: initialNickname)
+        _displayPhotoURL = State(initialValue: initialPhotoURL)
+    }
+
     @Environment(\.dismiss) private var dismiss                  // ✅ 추가
 
     @State private var messages: [ChatMessageLite] = []
@@ -50,10 +63,10 @@ struct ChatRoomView: View {
         VStack(spacing: 0) {
             // 상단 타이틀
             HStack(spacing: 12) {
-                Avatar(urlString: otherPhotoURL, fallback: otherNickname)
+                Avatar(urlString: displayPhotoURL, fallback: displayNickname)
                     .frame(width: 32, height: 32)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(otherNickname).font(.subheadline.bold())
+                    Text(displayNickname).font(.subheadline.bold())
                     if otherTyping {
                         Text("입력 중…").font(.caption2).foregroundStyle(.green)   // ✅ 입력 중 표시
                     } else {
@@ -94,12 +107,13 @@ struct ChatRoomView: View {
                             ChatBubbleRow(message: m,
                                           isMine: isMine,
                                           showReadReceipt: showRead,
-                                          otherNickname: otherNickname,
-                                          otherPhotoURL: otherPhotoURL,
+                                          otherNickname: displayNickname,
+                                          otherPhotoURL: displayPhotoURL,
                                           showAvatarAndName: !isMine && isFirstInGroup,
                                           compactTop: !isFirstInGroup,
                                           showTimestamp: isLastInGroup,
                                           timeText: timeText)
+
                                 .id(m.id)
                                 .padding(.horizontal, 4)
                         }
@@ -210,27 +224,45 @@ struct ChatRoomView: View {
         }
         .onAppear {
             dbg("onAppear hasValidRoomId=\(hasValidRoomId) roomId=\(roomId)")
+            
+            // 1) Firestore에서 상대 프로필 fetch
+            db.collection("users").document(otherUid).getDocument { snap, err in
+                if let data = snap?.data() {
+                    let nick = (data["nickname"] as? String) ?? initialNickname
+                    // 여러 키 대비, 우선순위대로 탐색
+                    let rawPhoto = (data["profileImageUrl"] as? String)
+                                ?? (data["ProfileImageUrl"] as? String)
+                                ?? (data["profileImageURL"] as? String)
+                                ?? (data["photoURL"] as? String)
+                                ?? (data["photoUrl"] as? String)
+
+                    DispatchQueue.main.async {
+                        displayNickname = nick
+                        displayPhotoURL = rawPhoto ?? initialPhotoURL
+                    }
+                } else {
+                    DispatchQueue.main.async {
+                        displayNickname = initialNickname
+                        displayPhotoURL = initialPhotoURL
+                    }
+                }
+            }
+
+
+            // 2) 메시지 구독
             if hasValidRoomId {
                 subscribe()
-                // ✅ room 메타(상대 readAt) 구독
                 roomMetaListener?.remove()
                 roomMetaListener = db.collection("chatRooms").document(roomId)
                     .addSnapshotListener { snap, _ in
                         guard let data = snap?.data() else { return }
-
-                        // ✅ 상대방 입력 상태 추적
                         if let typingMap = data["typing"] as? [String: Any],
                            let flag = typingMap[otherUid] as? Bool {
                             otherTyping = flag
                         }
-
-                        if let map = data["readAt"] as? [String: Any] {                            // 상대 uid의 readAt만 추출
-                            if let ts = map[otherUid] as? Timestamp {
-                                otherReadAt = ts
-                            } else if let mv = map[otherUid] as? [String: Any],
-                                      let sec = mv["seconds"] as? Int64 {
-                                otherReadAt = Timestamp(seconds: sec, nanoseconds: 0)
-                            }
+                        if let map = data["readAt"] as? [String: Any],
+                           let ts = map[otherUid] as? Timestamp {
+                            otherReadAt = ts
                         }
                     }
             } else {
@@ -238,6 +270,7 @@ struct ChatRoomView: View {
                 dbg("onAppear skip subscribe (invalid roomId)")
             }
         }
+
         .onDisappear {
             listener?.remove()
             roomMetaListener?.remove()   // ✅ 추가

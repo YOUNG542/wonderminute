@@ -31,9 +31,10 @@ struct ChatListView: View {
                     Group {
                         if let rid = activeRoomId, !rid.isEmpty {
                             ChatRoomView(roomId: rid,
-                                         otherNickname: activeOtherNickname,
-                                         otherPhotoURL: activeOtherPhotoURL,
-                                         otherUid: activeOtherUid)
+                                         otherUid: activeOtherUid,
+                                         initialNickname: activeOtherNickname,
+                                         initialPhotoURL: activeOtherPhotoURL)
+
                         } else {
                             EmptyView()
                         }
