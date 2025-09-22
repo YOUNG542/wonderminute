@@ -50,7 +50,14 @@ final class NotificationService: UNNotificationServiceExtension {
     let message = (data["message"] as? String) ?? content.body
     let threadId = (data["threadId"] as? String) ?? (data["roomId"] as? String)
     let fromUid = (data["fromUid"] as? String) ?? "unknown"   // ✅ 추가
-
+      // 🔒 차단 가드 — App Group UserDefaults에 저장된 blockedUids 사용
+      if let defaults = UserDefaults(suiteName: "group.app.wonderminute"),
+         let blocked = defaults.array(forKey: "blockedUids") as? [String],
+         blocked.contains(fromUid) {
+          os_log("🚫 DROP PUSH — blocked sender=%{public}@", log: log, type: .info, fromUid)
+          content.title = ""; content.body = ""; content.sound = nil
+          return contentHandler(content) // 표시 드랍
+      }
 
     // 프로필 이미지 URL (https 권장)
     let senderPhotoURL: String? = (data["senderPhotoURL"] as? String)

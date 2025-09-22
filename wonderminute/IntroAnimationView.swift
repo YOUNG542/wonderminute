@@ -92,7 +92,7 @@ struct IntroAnimationView: View {
                         .offset(y: showCopy1 ? 0 : 6)
                         .animation(.easeOut(duration: 0.28).delay(0.10), value: showCopy1)
 
-                    Text("감정을 고르고 사연을 남기면, 같은 마음의 누군가가 위로로 답해요")
+                    Text("힘듦을 토로하면, 같은 마음의 누군가가 위로로 답해요")
                         .font(.system(size: 16, weight: .medium))
                         .foregroundColor(AppTheme.textSecondary)
                         .opacity(showCopy2 ? 1 : 0)
@@ -157,7 +157,7 @@ struct IntroAnimationView: View {
             }
             workItem = item
             // 4초 정도 머물다 넘어감 (진행바와 맞춤)
-            DispatchQueue.main.asyncAfter(deadline: .now() + 4.0, execute: item)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2.0, execute: item)
         }
         .onDisappear {
             workItem?.cancel()

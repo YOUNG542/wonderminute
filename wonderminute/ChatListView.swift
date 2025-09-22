@@ -4,6 +4,20 @@ import FirebaseFirestore
 // import FirebaseFirestoreSwift   // ❌ 제거
 
 struct ChatListView: View {
+    init() {
+        if #available(iOS 15.0, *) {
+            UITableView.appearance().sectionHeaderTopPadding = 0
+            UITableView.appearance().contentInset.top = 0
+            UITableView.appearance().scrollIndicatorInsets = .zero                  // ⬅️ 추가
+            UITableView.appearance().tableHeaderView = UIView(frame: CGRect(x: 0, y: 0, width: 0, height: 0.01)) // ⬅️ 추가
+            UITableViewHeaderFooterView.appearance().backgroundConfiguration = UIBackgroundConfiguration.clear()
+        } else {
+            UITableViewHeaderFooterView.appearance().tintColor = .clear
+            UITableViewHeaderFooterView.appearance().backgroundView = UIView()
+        }
+
+    }
+
     @State private var rows: [ChatListRow] = []
     @State private var loading = true
     @State private var error: String?
@@ -25,26 +39,43 @@ struct ChatListView: View {
         ZStack {
             GradientBackground().ignoresSafeArea()
             
-            List {
-                // programmatic navigation anchor
-                NavigationLink(isActive: $pushChat) {
-                    Group {
-                        if let rid = activeRoomId, !rid.isEmpty {
-                            ChatRoomView(roomId: rid,
-                                         otherUid: activeOtherUid,
-                                         initialNickname: activeOtherNickname,
-                                         initialPhotoURL: activeOtherPhotoURL)
+            GeometryReader { geo in
+                // 큰 화면에서는 (화면폭 - 목표폭)/2 만큼 여백, 작은 화면에서는 12pt 고정
+                let minSidePadding: CGFloat = 28                 // 🔼 여백을 살짝 더 넉넉하게
+                let targetWidth: CGFloat = 420
+                let clampedTarget = min(targetWidth, geo.size.width - (minSidePadding * 2))
+                let inset = max((geo.size.width - clampedTarget) / 2, minSidePadding)
 
-                        } else {
-                            EmptyView()
+                
+                List {
+                    // programmatic navigation anchor
+                    NavigationLink(isActive: $pushChat) {
+                        Group {
+                            if let rid = activeRoomId, !rid.isEmpty {
+                                ChatRoomView(roomId: rid,
+                                             otherUid: activeOtherUid,
+                                             initialNickname: activeOtherNickname,
+                                             initialPhotoURL: activeOtherPhotoURL)
+                                
+                            } else {
+                                EmptyView()
+                            }
                         }
+                    } label: { EmptyView() }
+                        .frame(width: 0, height: 0)
+                        .hidden()
+                    
+                    
+                    // 🔒 섹션 헤더가 만드는 상단 흰 띠를 원천 차단: 커스텀 헤더 행으로 대체
+                    HStack {
+                        Text("최근 채팅").font(.headline)
+                        Spacer()
                     }
-                } label: { EmptyView() }
-                    .frame(width: 0, height: 0)
-                    .hidden()
-                
-                
-                Section(header: Text("최근 채팅").font(.headline)) {
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
+                    .listRowInsets(EdgeInsets(top: 0, leading: inset, bottom: 0, trailing: inset))
+                    .padding(.top, 4)
+
                     if loading {
                         HStack {
                             Spacer()
@@ -88,7 +119,7 @@ struct ChatListView: View {
                                 VStack(alignment: .leading, spacing: 4) {
                                     Text(r.otherNickname)
                                         .font(.subheadline).bold()
-                                        .foregroundStyle(.white)
+                                        .foregroundStyle(.primary)
                                     if r.isOtherTyping {
                                         Text("입력 중…")
                                             .font(.caption)
@@ -124,7 +155,10 @@ struct ChatListView: View {
                         }
                         
                         .buttonStyle(.plain)
-                        .listRowBackground(Color.clear)
+                           .listRowBackground(Color.clear)
+                           .listRowInsets(EdgeInsets(top: 0, leading: inset, bottom: 0, trailing: inset)) // ⬅️ 추가
+                           .listRowSeparator(.visible)
+                           .listRowSeparatorTint(.white.opacity(0.35))
                         // ✅ 스와이프 액션: 쓰레기통 → 방 나가기
                         .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                             Button(role: .destructive) {
@@ -135,18 +169,44 @@ struct ChatListView: View {
                         }
                         
                     }
+                    
                 }
+                .scrollContentBackground(.hidden)         // 리스트 기본 배경 차단
+                .background(Color.clear)                  // 리스트 자체 배경 투명
+                .listStyle(.plain)
+                .listSectionSpacing(.compact)
+                .ignoresSafeArea(edges: .top)             // ✅ 상단 safe area 자체 무시
+                .onAppear {
+                    // ✅ 스크롤뷰 자동 인셋 제거 (상단 흰 띠 원인)
+                    UIScrollView.appearance().contentInsetAdjustmentBehavior = .never
+                    
+                    let appearance = UINavigationBarAppearance()
+                    appearance.configureWithTransparentBackground()
+                    appearance.backgroundColor = .clear
+                    appearance.shadowColor = .clear                 // ⬅️ 추가: 하단 1px 라인 제거
+                    appearance.shadowImage = UIImage()              // ⬅️ 추가: 보수적 차단
+                    UINavigationBar.appearance().standardAppearance = appearance
+                    UINavigationBar.appearance().scrollEdgeAppearance = appearance
+                    UINavigationBar.appearance().compactAppearance = appearance // ⬅️ 추가: compact에서도 동일
+                    
+                }
+                .onDisappear {
+                    UIScrollView.appearance().contentInsetAdjustmentBehavior = .automatic
+                }
+                .navigationBarTitle("채팅", displayMode: .inline)
+                
+                
             }
-            .scrollContentBackground(.hidden)
-            .background(Color.clear)
-            .navigationTitle("채팅")
-            .navigationBarTitleDisplayMode(.inline)
-        }
-        .onAppear {
-            subscribe()
-        }
-        .onDisappear {
-            listener?.remove()
+            .onAppear {
+                // ✅ 네비게이션바 높이만큼 자동으로 넣는 상단 인셋 제거
+                UIScrollView.appearance().contentInsetAdjustmentBehavior = .never
+                subscribe()
+            }
+            .onDisappear {
+                // ✅ 다른 화면에 영향 가지 않게 원복
+                UIScrollView.appearance().contentInsetAdjustmentBehavior = .automatic
+                listener?.remove()
+            }
         }
         
         // ✅ 방 나가기 확인 알림

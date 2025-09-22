@@ -159,6 +159,9 @@ struct CallHistoryView: View {
     @State private var activeOtherPhotoURL: String?
     @State private var activeOtherUid: String = ""
     
+    // ✅ 차단 알림용 상태
+    @State private var showBlockedAlert = false
+    
     var body: some View {
         ZStack {
             GradientBackground().ignoresSafeArea()
@@ -218,23 +221,17 @@ struct CallHistoryView: View {
                             }
 
                             Spacer()
-                            // "채팅하기" 버튼
                             Button {
-                                // 이전 상태 초기화
+                                // 초기화
                                 pushChat = false
                                 activeRoomId = nil
 
                                 activeOtherNickname = row.otherNickname
                                 activeOtherPhotoURL = row.otherPhotoURL
-                                activeOtherUid = row.otherUid                    // ✅ 추가
+                                activeOtherUid = row.otherUid
 
-                                ChatService.shared.getOrCreateRoom(with: row.otherUid) { roomId, err in
-                                    guard err == nil, let rid = roomId, !rid.isEmpty else { return }
-                                    DispatchQueue.main.async {
-                                        activeRoomId = rid
-                                        pushChat = true
-                                    }
-                                }
+                                // ✅ 오직 여기서만 실행
+                                tryEnterChat(with: row.otherUid)
 
                             } label: {
                                 Text("채팅하기")
@@ -245,6 +242,12 @@ struct CallHistoryView: View {
                                     .clipShape(Capsule())
                             }
                             .buttonStyle(.plain)
+                            .alert("채팅 불가", isPresented: $showBlockedAlert) {
+                                Button("확인", role: .cancel) { }
+                            } message: {
+                                Text("차단된 사용자와는 채팅할 수 없습니다.")
+                            }
+
 
 
 
@@ -273,6 +276,55 @@ struct CallHistoryView: View {
         let s = sec % 60
         return String(format: "%d분 %02d초", m, s)
     }
+    
+    // ✅ 새로 추가
+    func tryEnterChat(with otherUid: String) {
+        guard let myUid = Auth.auth().currentUser?.uid else { return }
+        let db = Firestore.firestore()
+
+        Task {
+            do {
+                // 내가 상대를 메시지 차단했는지
+                let myQuery = try await db.collection("blocks")
+                    .whereField("blockerUid", isEqualTo: myUid)
+                    .whereField("blockedUid", isEqualTo: otherUid)
+                    .whereField("status", isEqualTo: "active")
+                    .whereField("effectScopes", arrayContains: "message") // ✅ 핵심
+                    .limit(to: 1)
+                    .getDocuments()
+                if !myQuery.isEmpty {
+                    await MainActor.run { showBlockedAlert = true }
+                    return
+                }
+
+                // 상대가 나를 메시지 차단했는지
+                let theirQuery = try await db.collection("blocks")
+                    .whereField("blockerUid", isEqualTo: otherUid)
+                    .whereField("blockedUid", isEqualTo: myUid)
+                    .whereField("status", isEqualTo: "active")
+                    .whereField("effectScopes", arrayContains: "message") // ✅ 핵심
+                    .limit(to: 1)
+                    .getDocuments()
+                if !theirQuery.isEmpty {
+                    await MainActor.run { showBlockedAlert = true }
+                    return
+                }
+
+                // ✅ 통과 시에만 방 생성/진입
+                ChatService.shared.getOrCreateRoom(with: otherUid) { roomId, err in
+                    guard err == nil, let rid = roomId, !rid.isEmpty else { return }
+                    DispatchQueue.main.async {
+                        activeRoomId = rid
+                        pushChat = true
+                    }
+                }
+            } catch {
+                print("❌ Block check error:", error)
+            }
+        }
+    }
+
+   
 }
 
 // MARK: - Avatar View

@@ -38,9 +38,9 @@ struct UserInfoView: View {
                     if !isLoadingPhoneState && !phoneVerified {
                         HStack(spacing: 10) {
                             Image(systemName: "phone.fill")
-                                .foregroundColor(.white)
+                                .foregroundColor(.black)
                             Text("안전한 이용을 위해 전화번호 인증이 필요해요.")
-                                .foregroundColor(.white)
+                                .foregroundColor(.black)
                                 .lineLimit(2)
                             Spacer()
                             Button("인증하기") { showPhoneSheet = true }
@@ -49,7 +49,7 @@ struct UserInfoView: View {
                                 .padding(.horizontal, 12)
                                 .background(.ultraThinMaterial, in: Capsule())
                                 .overlay(Capsule().stroke(Color.white.opacity(0.22), lineWidth: 1))
-                                .foregroundColor(.white)
+                                .foregroundColor(.black)
                         }
                         .padding(12)
                         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
@@ -65,12 +65,12 @@ struct UserInfoView: View {
                     // 단계 타이틀/설명
                     Text(step.title)
                         .font(.title2.bold())
-                        .foregroundColor(.white)
+                        .foregroundColor(.black)
                         .frame(maxWidth: .infinity, alignment: .leading)
 
                     Text(step.subtitle)
                         .font(.callout)
-                        .foregroundColor(.white.opacity(0.9))
+                        .foregroundColor(.black.opacity(0.9))
                         .frame(maxWidth: .infinity, alignment: .leading)
 
                     // 🔄 단계별 콘텐츠 카드: 글래스 스타일
@@ -166,12 +166,20 @@ struct UserInfoView: View {
     
     // 상단 진행 헤더
     private var header: some View {
-        VStack(spacing: 14) {
+        let dotOn    = Color.black
+        let dotOff   = Color.black.opacity(0.35)
+        return VStack(spacing: 14) {
             GeometryReader { geo in
                 ZStack(alignment: .leading) {
-                    Capsule().fill(.white.opacity(0.25))
+                    // 따뜻한 다크(웜보이스 톤) – 너무 새까맣지 않게
+                    let barBase  = Color.black.opacity(0.15)
+                    let barFill  = Color.black.opacity(0.85)
+                    
+
+                    // header 내부
+                    Capsule().fill(barBase)
                     Capsule()
-                        .fill(.white)
+                        .fill(barFill)
                         .frame(width: geo.size.width * CGFloat(step.rawValue + 1) / CGFloat(OnbStep.allCases.count))
                         .matchedGeometryEffect(id: "progress", in: progressNS)
                 }
@@ -183,7 +191,7 @@ struct UserInfoView: View {
             HStack(spacing: 8) {
                 ForEach(OnbStep.allCases, id: \.self) { s in
                     Circle()
-                        .fill(s.rawValue <= step.rawValue ? .white : .white.opacity(0.35))
+                        .fill(s.rawValue <= step.rawValue ? dotOn : dotOff)
                         .frame(width: 8, height: 8)
                 }
             }
@@ -192,18 +200,30 @@ struct UserInfoView: View {
     
     // 하단 내비게이션
     private var footer: some View {
-        HStack(spacing: 12) {
+        let peach  = Color(red: 1.00, green: 0.86, blue: 0.70)
+        let coral  = Color(red: 0.98, green: 0.53, blue: 0.47)
+        let ivory  = Color(red: 1.00, green: 0.98, blue: 0.96)
+       return HStack(spacing: 12) {
             Button {
                 vm.errorMsg = nil
                 if let prev = OnbStep(rawValue: step.rawValue - 1) { step = prev }
             } label: {
+                
+
+                // 이전 (글래스톤 + 블랙 텍스트)
                 Label("이전", systemImage: "chevron.left")
                     .font(.headline)
                     .frame(maxWidth: .infinity)
                     .padding()
-                    .background(.white.opacity(0.15))
-                    .foregroundColor(.white)
-                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    .foregroundColor(.black)
+                    .background(
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .fill(Color.black.opacity(0.06))
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .stroke(Color.black.opacity(0.12), lineWidth: 1)
+                    )
             }
             .disabled(step == .nickname)
             .opacity(step == .nickname ? 0.5 : 1)
@@ -238,15 +258,34 @@ struct UserInfoView: View {
                     if let next = OnbStep(rawValue: step.rawValue + 1) { step = next }
                 }
             } label: {
+                // 다음 / 시작하기 (웜 그라데이션)
+                let canProceed = (vm.validate(step: step) || step == .teToEg)
+                                 && (step != .teToEg || phoneVerified)
+
                 Text(step == .teToEg ? "시작하기" : "다음")
                     .font(.headline)
                     .frame(maxWidth: .infinity)
                     .padding()
-                    .background( (vm.validate(step: step) || step == .teToEg)
-                                                    && (step != .teToEg || phoneVerified)
-                                                    ? Color.green : Color.gray)
-                                       .foregroundColor(.white)
-                                       .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    .foregroundColor(.black)
+                    .background(
+                        Group {
+                            if canProceed {
+                                LinearGradient(colors: [peach, coral],
+                                               startPoint: .topLeading,
+                                               endPoint: .bottomTrailing)
+                            } else {
+                                // 비활성: 아이보리 톤
+                                LinearGradient(colors: [ivory.opacity(0.9), ivory.opacity(0.8)],
+                                               startPoint: .topLeading,
+                                               endPoint: .bottomTrailing)
+                            }
+                        }
+                        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .stroke(Color.black.opacity(canProceed ? 0.12 : 0.08), lineWidth: 1)
+                    )
                                
             }
             .disabled(!((vm.validate(step: step) || step == .teToEg)
@@ -313,19 +352,19 @@ struct NicknameStep: View {
         VStack(alignment: .leading, spacing: 12) {
             Text("닉네임")
                 .font(.caption.weight(.semibold))
-                .foregroundColor(.white.opacity(0.9))
+                .foregroundColor(.black.opacity(0.9))
 
             // 글래스 인풋
             ZStack(alignment: .leading) {
                 if nickname.isEmpty {
                     Text("닉네임 입력")
-                        .foregroundColor(.white.opacity(0.45))
+                        .foregroundColor(.black.opacity(0.45))
                         .padding(.horizontal, 12)
                 }
                 TextField("", text: $nickname)
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
-                    .foregroundColor(.white)
+                    .foregroundColor(.black)
                     .padding(.horizontal, 12)
             }
             .frame(height: 44)
@@ -348,13 +387,13 @@ struct SegmentedStep: View {
         VStack(alignment: .leading, spacing: 12) {
             Text(title)
                 .font(.headline)
-                .foregroundColor(.white)
+                .foregroundColor(.black)
 
             Picker(title, selection: $selection) {
                 ForEach(options, id: \.self) { Text($0) }
             }
             .pickerStyle(.segmented)
-            .tint(.white)
+            .tint(.black)
             .background(
                 RoundedRectangle(cornerRadius: 10, style: .continuous)
                     .fill(Color.white.opacity(0.12))
@@ -379,7 +418,7 @@ struct PhotoStep: View {
                         Circle().fill(Color.white.opacity(0.12))
                         Image(systemName: "person.crop.circle.badge.plus")
                             .font(.system(size: 48))
-                            .foregroundColor(.white.opacity(0.9))
+                            .foregroundColor(.black.opacity(0.9))
                     }
                 }
             }
@@ -396,7 +435,7 @@ struct PhotoStep: View {
                     Text("앨범에서 선택")
                         .font(.callout.weight(.semibold))
                 }
-                .foregroundColor(.white)
+                .foregroundColor(.black)
                 .padding(.vertical, 10)
                 .padding(.horizontal, 16)
                 .background(.ultraThinMaterial, in: Capsule())
@@ -406,7 +445,7 @@ struct PhotoStep: View {
 
             Text("괜찮아요, 건너뛰어도 됩니다.")
                 .font(.footnote)
-                .foregroundColor(.white.opacity(0.8))
+                .foregroundColor(.black.opacity(0.8))
         }
         .frame(maxWidth: .infinity)
         .multilineTextAlignment(.center)
@@ -422,7 +461,7 @@ struct InterestStep: View {
         VStack(alignment: .leading, spacing: 12) {
             Text("관심사 선택 (복수 선택 가능)")
                 .font(.headline)
-                .foregroundColor(.white)
+                .foregroundColor(.black)
 
             LazyVGrid(columns: columns, spacing: 10) {
                 ForEach(options, id: \.self) { item in
@@ -485,7 +524,7 @@ struct SelectablePill: View {
                     .opacity(isSelected ? 1 : 0)
                 }
             )
-            .foregroundColor(.white)
+            .foregroundColor(.black)
             .clipShape(Capsule())
             .overlay(
                 Capsule().stroke(Color.white.opacity(isSelected ? 0.35 : 0.18), lineWidth: 1)

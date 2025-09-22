@@ -35,42 +35,46 @@ struct MatchedView: View {
         ZStack {
             // ✅ 공용 테마 배경
             GradientBackground()
-
+                .ignoresSafeArea()
+            
             VStack(spacing: 20) {
                 Spacer(minLength: 24)
 
-                // 헤더 카드
-                VStack(spacing: 14) {
+                // 헤더 카드 (아이콘/텍스트를 시스템 가독 색으로)
+                VStack(spacing: 12) {
                     Image(systemName: "phone.fill.arrow.up.right")
                         .font(.system(size: 36, weight: .bold))
-                        .foregroundColor(.white)
+                        .foregroundColor(.primary)
                         .padding(16)
-                        .background(Color.white.opacity(0.15))
-                        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-                        .shadow(color: .black.opacity(0.15), radius: 12, y: 6)
+                        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                .stroke(Color.primary.opacity(0.08), lineWidth: 1)
+                        )
+                        .shadow(color: .black.opacity(0.08), radius: 10, y: 4)
                         .scaleEffect(pulse ? 1.03 : 1.0)
 
                     Text("매칭 성공!")
                         .font(.system(size: 26, weight: .heavy))
-                        .foregroundColor(.white)
+                        .foregroundColor(.primary)
 
                     Text("곧 통화가 시작됩니다.")
                         .font(.system(size: 16, weight: .medium))
-                        .foregroundColor(.white.opacity(0.9))
+                        .foregroundColor(.secondary)
                 }
                 .opacity(appear ? 1 : 0)
                 .offset(y: appear ? 0 : 8)
                 .animation(.easeOut(duration: 0.28), value: appear)
 
-                // 카운트다운 인디케이터
+                // 카운트다운 인디케이터 (밝은 배경에서도 보이는 대비)
                 ZStack {
                     Circle()
-                        .strokeBorder(Color.white.opacity(0.15), lineWidth: 10)
+                        .strokeBorder(Color.primary.opacity(0.12), lineWidth: 10)
                         .frame(width: 140, height: 140)
 
                     Text("\(countdown)")
                         .font(.system(size: 48, weight: .bold))
-                        .foregroundColor(.white)
+                        .foregroundColor(.primary)
                         .opacity(0.95)
                 }
                 .padding(.top, 4)
@@ -80,26 +84,38 @@ struct MatchedView: View {
                 if let message {
                     Text(message)
                         .font(.footnote)
-                        .foregroundColor(.white.opacity(0.95))
+                        .foregroundColor(.primary)
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, 20)
                         .padding(.top, 4)
                 }
 
-                // 취소 버튼 (로직 동일, 스타일만 적용)
+                // 취소 버튼 (고대비 실색 버튼)
                 Button {
                     cancelMatchViaFunction()
                 } label: {
                     Text(isCancelling ? "취소 중..." : "매칭 취소")
-                        .bold()
+                        .fontWeight(.bold)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 14)
+                        .contentShape(Rectangle())
                 }
-                .buttonStyle(WMDestructiveWhiteButtonStyle())
+                .foregroundColor(.white)
+                .background(
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .fill(isCancelling ? Color.red.opacity(0.6) : Color.red)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .stroke(Color.black.opacity(0.05), lineWidth: 1)
+                )
+                .shadow(color: .black.opacity(0.12), radius: 10, y: 4)
                 .disabled(isCancelling)
                 .padding(.horizontal, 24)
                 .opacity(appear ? 1 : 0)
                 .animation(.easeOut(duration: 0.28).delay(0.1), value: appear)
 
-                // 안내 배너 2종 (UI만)
+                // 안내 배너 2종 (텍스트는 .primary, 테두리는 약한 대비)
                 VStack(spacing: 10) {
                     // 백그라운드 주의
                     HStack(alignment: .top, spacing: 10) {
@@ -107,12 +123,12 @@ struct MatchedView: View {
                             .foregroundColor(.yellow)
                         Text("지금 화면을 벗어나면 연결이 지연되거나 취소될 수 있어요. 잠시만 이 화면을 유지해 주세요.")
                             .font(.footnote)
-                            .foregroundColor(.white.opacity(0.95))
+                            .foregroundColor(.primary)
                             .fixedSize(horizontal: false, vertical: true)
                     }
                     .padding(12)
                     .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-                    .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.white.opacity(0.15), lineWidth: 1))
+                    .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.primary.opacity(0.08), lineWidth: 1))
 
                     // 사용자 보호
                     HStack(alignment: .top, spacing: 10) {
@@ -120,12 +136,12 @@ struct MatchedView: View {
                             .foregroundColor(.green)
                         Text("안전한 이용을 위해 통화 중 **개인 연락처 공유, 금전 요구·제안, 외부 링크 유도**는 금지됩니다. 위반 시 계정이 제한될 수 있어요.")
                             .font(.footnote)
-                            .foregroundColor(.white.opacity(0.95))
+                            .foregroundColor(.primary)
                             .fixedSize(horizontal: false, vertical: true)
                     }
                     .padding(12)
                     .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-                    .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.white.opacity(0.15), lineWidth: 1))
+                    .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.primary.opacity(0.08), lineWidth: 1))
                 }
                 .padding(.horizontal, 20)
                 .padding(.top, 4)
@@ -135,6 +151,7 @@ struct MatchedView: View {
                 Spacer(minLength: 24)
             }
             .padding(.horizontal, 12)
+
 
             // 취소 중 오버레이 (로직 동일)
             if isCancelling {

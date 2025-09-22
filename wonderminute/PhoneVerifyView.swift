@@ -19,11 +19,11 @@ struct PhoneVerifyView: View {
                     VStack(alignment: .leading, spacing: 6) {
                         Text("전화번호 인증")
                             .font(.title3.bold())
-                            .foregroundColor(.white)
+                            .foregroundColor(.black)
 
                         Text("본인 확인을 위해 휴대폰 번호를 입력하고\n인증코드를 받아주세요.")
                             .font(.footnote)
-                            .foregroundColor(.white.opacity(0.85))
+                            .foregroundColor(.black.opacity(0.85))
                     }
 
                     // 전화번호 입력
@@ -91,7 +91,18 @@ struct PhoneVerifyView: View {
                     }
                 }
                 .padding(20)
-                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                .background(
+                    LinearGradient(
+                        colors: [
+                            Color(red: 1.0, green: 0.96, blue: 0.93),   // 아이보리
+                            Color(red: 1.0, green: 0.94, blue: 0.88)    // 베이지
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    in: RoundedRectangle(cornerRadius: 18, style: .continuous)
+                )
+
                 .overlay(
                     RoundedRectangle(cornerRadius: 18, style: .continuous)
                         .stroke(Color.white.opacity(0.14), lineWidth: 1)
@@ -129,19 +140,19 @@ fileprivate struct GlassField: View {
         VStack(alignment: .leading, spacing: 6) {
             Text(title)
                 .font(.caption.weight(.semibold))
-                .foregroundColor(.white.opacity(0.9))
+                .foregroundColor(.black.opacity(0.9))
 
             ZStack(alignment: .leading) {
                 // placeholder
                 if text.isEmpty {
                     Text(placeholder)
-                        .foregroundColor(.white.opacity(0.45))
+                        .foregroundColor(.black.opacity(0.45))
                         .padding(.horizontal, 12)
                 }
                 TextField("", text: $text)
                     .keyboardType(keyboard)
                     .textInputAutocapitalization(.never)
-                    .foregroundColor(.white)
+                    .foregroundColor(.black)
                     .padding(.horizontal, 12)
             }
             .frame(height: 44)
@@ -160,7 +171,7 @@ fileprivate struct GlassPrimaryButtonStyle: ButtonStyle {
     var disabled: Bool = false
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .foregroundColor(.white)
+            .foregroundColor(.black)
             .frame(maxWidth: .infinity)
             .background(
                 RoundedRectangle(cornerRadius: 14, style: .continuous)
@@ -224,11 +235,22 @@ fileprivate struct LoadingOverlayPV: View {
             }
             .padding(.vertical, 18)
             .padding(.horizontal, 20)
-            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .background(
+                LinearGradient(
+                    colors: [
+                        Color.black.opacity(0.45),   // 어두운 톤
+                        Color.black.opacity(0.35)
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                ),
+                in: RoundedRectangle(cornerRadius: 18, style: .continuous)
+            )
             .overlay(
                 RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .stroke(Color.white.opacity(0.18), lineWidth: 1)
+                    .stroke(Color.white.opacity(0.25), lineWidth: 1)
             )
+
             .shadow(color: .black.opacity(0.25), radius: 18, y: 12)
             .padding(.horizontal, 40)
             .onAppear { spin = true }

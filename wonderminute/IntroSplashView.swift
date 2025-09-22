@@ -106,11 +106,9 @@ struct IntroSplashView: View {
                 // IntroSplashView 내부
                 TypingSequenceText(
                     messages: [
-                        "웜보이스는 당신을 위해 만들어졌어요.",
                         "때로는 누군가가 아무 말 없이 들어줬으면 하는거죠?....",
                         "각박한 세상에 그런 사람을 만나기 쉽지 않아요..",
-                        "감정을 선택하고 짧은 고민 글을 남기세요.",
-                        "같은 마음의 누군가에게 전해지고, 따뜻한 위로가 돌아올 겁니다."
+                        "같은 마음의 누군가에게 전하면, 따뜻한 위로가 돌아올 겁니다."
                     ]
                 ) {
                     // ✅ 모든 문구 끝난 뒤 화면 전환
@@ -177,10 +175,10 @@ struct TypingSequenceText: View {
     // ⏱ 타이밍 파라미터들 — 필요하면 숫자만 조절!
     var delayBeforeStart: Double = 1.4      // 로고 후 첫 시작 대기
     var wrapLimit: Int = 18                 // 긴 문장 자동 줄바꿈 기준
-    var appearDelayPerChar: Double = 0.14   // 글자 등장 간격 (↑ 느리게)
-    var pauseAfterShown: Double = 3.0       // 모두 보인 뒤 멈춤 시간
-    var eraseDelayPerChar: Double = 0.08    // 글자 사라짐 간격 (↑ 느리게)
-    var pauseAfterErased: Double = 1.8      // 완전히 0자가 된 뒤 다음 문장까지 대기
+    var appearDelayPerChar: Double = 0.05   // 글자 등장 간격 (↑ 느리게)
+    var pauseAfterShown: Double = 1.5       // 모두 보인 뒤 멈춤 시간
+    var eraseDelayPerChar: Double = 0.04   // 글자 사라짐 간격 (↑ 느리게)
+    var pauseAfterErased: Double = 1.0      // 완전히 0자가 된 뒤 다음 문장까지 대기
 
     @State private var currentIndex = 0
     @State private var visibleCount = 0

@@ -126,28 +126,43 @@ struct CallView: View {
 
                 // 오른쪽 상단 아이템들: [미닛(아이콘+0)] [상점] [알람]
                 ToolbarItemGroup(placement: .navigationBarTrailing) {
-                    MinuteBadgeView()  // ✅ 인자 제거    // ← 작은 앱 아이콘 + 0
+                    MinuteBadgeView()   // ↓ 내부도 아래처럼 업데이트됨
 
                     Button(action: {
                         // 아직 기능 없음 (상점)
                     }) {
                         Image(systemName: "bag.fill")
-                            .font(.system(size: 18, weight: .semibold))
+                            .font(.system(size: 14, weight: .bold))
                             .foregroundColor(.white)
-                            .padding(.horizontal, 2)
-                            .contentShape(Rectangle())
+                            .padding(8)
+                            .background(
+                                LinearGradient(colors: [Color(hex: 0xFF6B8A), Color(hex: 0xFFB36A)],
+                                               startPoint: .topLeading, endPoint: .bottomTrailing),
+                                in: Circle()
+                            )
+                            .overlay(Circle().stroke(.white.opacity(0.22), lineWidth: 1))
+                            .shadow(color: .black.opacity(0.20), radius: 8, y: 4)
                     }
+                    .buttonStyle(.plain)
 
                     Button(action: {
                         // 아직 기능 없음 (알람)
                     }) {
                         Image(systemName: "bell.fill")
-                            .font(.system(size: 18, weight: .semibold))
+                            .font(.system(size: 14, weight: .bold))
                             .foregroundColor(.white)
-                            .padding(.leading, 2)
-                            .contentShape(Rectangle())
+                            .padding(8)
+                            .background(
+                                LinearGradient(colors: [Color(hex: 0xFF6B8A), Color(hex: 0xFFB36A)],
+                                               startPoint: .topLeading, endPoint: .bottomTrailing),
+                                in: Circle()
+                            )
+                            .overlay(Circle().stroke(.white.opacity(0.22), lineWidth: 1))
+                            .shadow(color: .black.opacity(0.20), radius: 8, y: 4)
                     }
+                    .buttonStyle(.plain)
                 }
+
             }
 
         }
@@ -196,10 +211,11 @@ private struct GradientIcon: View {        // ✅ 단일 선언만 유지
             Circle()
                 .fill(
                     LinearGradient(
-                        colors: [Color(hex: 0x8B5CFF), Color(hex: 0x4E73FF)],
+                        colors: [Color(hex: 0xFF6B8A), Color(hex: 0xFFB36A)],
                         startPoint: .topLeading, endPoint: .bottomTrailing
                     )
                 )
+
                 .frame(width: size + 24, height: size + 24)
                 .shadow(color: .black.opacity(0.20), radius: 12, x: 0, y: 6)
 
@@ -220,10 +236,10 @@ private struct GradientIcon: View {        // ✅ 단일 선언만 유지
 private struct GenderIllustration: View {
     var body: some View {
         HStack(spacing: -16) {
-            IllustrationBubble(icon: "person.fill", start: 0x7C4DFF, end: 0x5A6AFF, size: 52)
+            IllustrationBubble(icon: "person.fill", start: 0xFF6B8A, end: 0xFF947A, size: 52)   // rose → coral
                 .offset(y: 4)
-            IllustrationBubble(icon: "figure.dress", start: 0x5A6AFF, end: 0x33B6FF, size: 64)
-            IllustrationBubble(icon: "person.3.fill", start: 0x8B5CFF, end: 0x4E73FF, size: 52)
+            IllustrationBubble(icon: "figure.dress", start: 0xFF947A, end: 0xFFC48A, size: 64)
+            IllustrationBubble(icon: "person.3.fill", start: 0xFF7AAE, end: 0xFFA86A, size: 52)
                 .offset(y: 6)
         }
         .padding(.bottom, 2)
@@ -264,21 +280,28 @@ private struct MinuteBadgeView: View {
             Image("WMPhoneDot")
                 .renderingMode(.template)
                 .resizable().scaledToFit()
-                .frame(width: 20, height: 20)
+                .frame(width: 16, height: 16)
                 .foregroundColor(.white)
+
             Text("0")
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundColor(.white.opacity(0.95))
+                .font(.system(size: 13, weight: .bold))
+                .foregroundColor(.white)
         }
-        .padding(.horizontal, 10).padding(.vertical, 6)
-        .background(.ultraThinMaterial, in: Capsule())
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .background(
+            LinearGradient(colors: [Color(hex: 0xFF6B8A), Color(hex: 0xFFB36A)],
+                           startPoint: .leading, endPoint: .trailing),
+            in: Capsule()
+        )
         .overlay(Capsule().stroke(.white.opacity(0.22), lineWidth: 1))
-        .shadow(color: .black.opacity(0.25), radius: 10, y: 6)
+        .shadow(color: .black.opacity(0.20), radius: 8, y: 4)
         .contentShape(Rectangle())
         .accessibilityElement(children: .combine)
         .accessibilityLabel("미닛 0")
     }
 }
+
 
 
 // ③ 세그먼트(비선택은 더 플랫, 선택은 선명)
@@ -293,7 +316,7 @@ private struct SegItem: View {
                 .renderingMode(.template)
                 .resizable().scaledToFit()
                 .frame(height: 16)
-                .foregroundColor(isSelected ? Color(hex: 0x5A6AFF) : Color(hex: 0x8A8F98)) // 살짝 진하게
+                .foregroundColor(isSelected ? Color(hex: 0xFF6B8A) : Color(hex: 0x8A8F98))  // 살짝 진하게
 
             Text(title)
                 .font(.caption2.weight(.semibold))
@@ -307,7 +330,7 @@ private struct SegItem: View {
         )
         .overlay(
             RoundedRectangle(cornerRadius: 10)
-                .stroke(isSelected ? Color(hex: 0x5A6AFF).opacity(0.35) : Color.black.opacity(0.06), lineWidth: 1)
+                .stroke(isSelected ? Color(hex: 0xFF6B8A).opacity(0.35) : Color.black.opacity(0.06), lineWidth: 1)
         )
         .shadow(color: Color.black.opacity(isSelected ? 0.08 : 0.03), radius: isSelected ? 8 : 4, y: 3)
     }
@@ -419,9 +442,10 @@ private struct SolidPrimaryButtonStyle: ButtonStyle {
             .padding(.vertical, 18)
             .frame(maxWidth: .infinity)
             .background(
-                LinearGradient(colors: [Color(hex: 0x5A6AFF), Color(hex: 0x7A5CFF)],
-                               startPoint: .leading, endPoint: .trailing) // 방향도 좌→우로 통일
+                LinearGradient(colors: [Color(hex: 0xFF6B8A), Color(hex: 0xFFB36A)],
+                               startPoint: .leading, endPoint: .trailing)
             )
+
             .clipShape(Capsule())
             .shadow(color: .black.opacity(configuration.isPressed ? 0.06 : 0.10),
                     radius: configuration.isPressed ? 6 : 12, y: configuration.isPressed ? 3 : 8) // 단일
@@ -434,9 +458,8 @@ private struct SolidPrimaryButtonStyle: ButtonStyle {
 fileprivate struct AmbientBackground: View {
     var body: some View {
         ZStack {
-            // 좌상단 보라 블롭
             Circle()
-                .fill(LinearGradient(colors: [Color(hex: 0x8B5CFF), Color(hex: 0x6E7BFF)],
+                .fill(LinearGradient(colors: [Color(hex: 0xFF6B8A), Color(hex: 0xFF7AAE)],
                                      startPoint: .topLeading, endPoint: .bottomTrailing))
                 .frame(width: 360, height: 360)
                 .blur(radius: 120)
@@ -445,8 +468,9 @@ fileprivate struct AmbientBackground: View {
 
             // 우상단 블루 블롭
             Circle()
-                .fill(LinearGradient(colors: [Color(hex: 0x4E73FF), Color(hex: 0x33B6FF)],
+                .fill(LinearGradient(colors: [Color(hex: 0xFFB36A), Color(hex: 0xFFC48A)],
                                      startPoint: .topLeading, endPoint: .bottomTrailing))
+
                 .frame(width: 300, height: 300)
                 .blur(radius: 110)
                 .opacity(0.30)
@@ -470,42 +494,51 @@ fileprivate struct AmbientBackground: View {
 // 한 줄 고정 배지 행
 fileprivate struct ValuePropsRow: View {
     var body: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 10) {
             ValueTag(icon: "lock.shield.fill", text: "안전한 익명 통화")
-            ValueTag(icon: "bolt.badge.a.fill", text: "실시간 매칭")
-            ValueTag(icon: "hand.raised.fill", text: "신고/차단 지원")
+            ValueTag(icon: "bolt.fill",         text: "실시간 매칭")
+            ValueTag(icon: "hand.raised.fill",  text: "신고/차단 지원")
         }
-        .frame(maxWidth: .infinity, alignment: .center) // ✅ 가운데 정렬
+        .frame(maxWidth: .infinity, alignment: .center)
+        .padding(.top, 2)
     }
 }
 
-
-// 컴팩트 칩
 fileprivate struct ValueTag: View {
     let icon: String
     let text: String
     var body: some View {
         HStack(spacing: 6) {
             Image(systemName: icon)
-                .font(.system(size: 12, weight: .semibold))
+                .font(.system(size: 12, weight: .bold))
+                .foregroundColor(Color(hex: 0xFF6B8A))           // 아이콘은 따뜻한 포인트
 
             Text(text)
-                .font(.system(size: 11, weight: .semibold)) // ⬅️ 살짝 축소
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundColor(Color(hex: 0x1B2240).opacity(0.92)) // 텍스트는 진한 네이비
                 .lineLimit(1)
-                .minimumScaleFactor(0.75)                   // ⬅️ 필요시 더 줄여서 한 줄 유지
-                .allowsTightening(true)
+                .minimumScaleFactor(0.8)
         }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 6)
-        .background(.ultraThinMaterial, in: Capsule())
-        .overlay(
-            Capsule().stroke(Color.white.opacity(0.20), lineWidth: 0.8)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 7)
+        .background(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(Color.white)                                // **솔리드 화이트**
         )
-        .foregroundColor(.white.opacity(0.95))
-        .fixedSize(horizontal: true, vertical: true) // ⬅️ 내부에서만 크기 결정(늘어남 방지)
+        .overlay(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .stroke(
+                    LinearGradient(colors: [
+                        Color(hex: 0xFFD5DE).opacity(0.9),        // 아주 연한 로즈
+                        Color(hex: 0xFFE2C9).opacity(0.9)         // 아주 연한 피치
+                    ], startPoint: .leading, endPoint: .trailing),
+                    lineWidth: 1
+                )
+        )
+        .shadow(color: .black.opacity(0.06), radius: 8, y: 4)      // 배경에서 확 띄우기
+        .fixedSize(horizontal: true, vertical: true)
     }
 }
-
 
 // 파일 하단에 추가
 // 파일 하단 교체
@@ -528,7 +561,8 @@ fileprivate struct DailyPromptCard: View {
                 .font(.system(size: 14, weight: .bold))
                 .padding(8)
                 .background(Color(hex: 0xEEF1F6), in: Circle())
-                .foregroundColor(Color(hex: 0x5A6AFF))
+                .foregroundColor(Color(hex: 0xFF6B8A))
+
 
             // 회전 멘트
             Text(prompts[idx])
@@ -668,9 +702,10 @@ private struct CallCTAPillStyle: ButtonStyle {
             .frame(maxWidth: .infinity)
             .frame(height: 56)
             .background(
-                LinearGradient(colors: [AppTheme.purple, AppTheme.blue],
-                               startPoint: .leading, endPoint: .trailing) // 🔹 TabPill과 동일
+                LinearGradient(colors: [Color(hex: 0xFF6B8A), Color(hex: 0xFFB36A)],
+                               startPoint: .leading, endPoint: .trailing) // 🔸 웜보이스 톤
             )
+
             .clipShape(Capsule())
             .overlay(
                 Capsule()

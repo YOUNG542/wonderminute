@@ -197,9 +197,10 @@ struct ChatRoomView: View {
                             "typing": [myUid: isTyping]
                         ], merge: true)
                     }
-                Button { send() } label: {
+                Button { Task { await send() } } label: {
                     Text("전송").bold()
                 }
+
                 .disabled(!hasValidRoomId || text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || loading)
 
             }
@@ -349,16 +350,28 @@ struct ChatRoomView: View {
 
 
 
-    private func send() {
+    private func send() async {
         let content = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard hasValidRoomId else { dbg("send() aborted: invalid roomId"); return }
         guard !content.isEmpty, let me = Auth.auth().currentUser?.uid else { dbg("send() aborted: empty content or no uid"); return }
 
+        // 🔒 차단 가드 (양방향)
+        if await isBlockedWithOther(me, otherUid) {
+            dbg("⛔️ blocked pair: \(me) ↔︎ \(otherUid) — abort send")
+            await MainActor.run { errMsg = "차단된 상대와는 메시지를 주고받을 수 없어요." }
+            return
+        }
+
         let roomRef = db.collection("chatRooms").document(roomId)
         let msgRef  = roomRef.collection("messages").document()
-
         let now = Timestamp(date: Date())
-        dbg("✉️ send() id=\(msgRef.documentID) content='\(content)' now=\(now.seconds).\(now.nanoseconds)")
+
+        await MainActor.run {
+            // (옵티미스틱 append) — 막고 싶다면 주석 처리 가능
+            let temp = ChatMessageLite(id: msgRef.documentID, senderId: me, content: content, timestamp: now)
+            messages.append(temp)
+            text = "" // 입력창 비우기
+        }
 
         let payload: [String: Any] = [
             "senderId": me,
@@ -366,12 +379,6 @@ struct ChatRoomView: View {
             "timestamp": now,
             "serverTimestamp": FieldValue.serverTimestamp()
         ]
-
-        DispatchQueue.main.async {
-            let temp = ChatMessageLite(id: msgRef.documentID, senderId: me, content: content, timestamp: now)
-            messages.append(temp)
-            dbg("🧩 optimistic append id=\(temp.id) messages.count=\(messages.count)")
-        }
 
         msgRef.setData(payload) { err in
             if let err = err {
@@ -388,21 +395,27 @@ struct ChatRoomView: View {
                 "readAt.\(myUid)": FieldValue.serverTimestamp(),
                 "unread.\(myUid)": 0,
                 "unread.\(otherUid)": FieldValue.increment(1.0),
-                FieldPath(["leftAt", myUid]): FieldValue.delete()   // ← 내 leftAt만 안전 삭제
+                FieldPath(["leftAt", myUid]): FieldValue.delete()
             ]) { e in
                 if let e = e {
                     dbg("⚠️ update room summary error: \(e.localizedDescription)")
-                } else {
-                    dbg("✅ room summary updated")
+                    return
+                }
+                dbg("✅ room summary updated")
 
-                    // ✅ Cloud Function 호출 → 상대방 푸시 알림 트리거
-                    let payload: [String: Any] = [
+                // 🔒 푸시 전 마지막 가드 (레이스 대비)
+                Task {
+                    if await isBlockedWithOther(me, otherUid) {
+                        dbg("🚫 skip push — blocked after write race")
+                        return
+                    }
+                    let p: [String: Any] = [
                         "toUid": otherUid,
                         "fromUid": myUid,
                         "message": content,
                         "roomId": roomId
                     ]
-                    functions.httpsCallable("sendChatNotification").call(payload) { result, error in
+                    functions.httpsCallable("sendChatNotification").call(p) { _, error in
                         if let error = error {
                             dbg("⚠️ push notify error: \(error.localizedDescription)")
                         } else {
@@ -411,9 +424,43 @@ struct ChatRoomView: View {
                     }
                 }
             }
-            text = ""
         }
     }
+
+    
+    /// Firestore 구조: users/{uid}/privacy/blocked.uids + blocks/{me_other}
+    /// 로컬 캐시(SafetyCenter.shared.blockedUids) 우선 확인 후 서버 확정
+    private func isBlockedWithOther(_ me: String, _ other: String) async -> Bool {
+        // 0) 로컬 캐시 빠른 판정
+        if SafetyCenter.shared.blockedUids.contains(other) { return true }
+
+        do {
+            // 1) users/{me}/privacy/blocked.uids 에 other 포함?
+            let myDoc = try await db.collection("users").document(me)
+                .collection("privacy").document("blocked").getDocument()
+            if let arr = myDoc.get("uids") as? [String], arr.contains(other) { return true }
+
+            // 2) users/{other}/privacy/blocked.uids 에 me 포함?
+            let otherDoc = try await db.collection("users").document(other)
+                .collection("privacy").document("blocked").getDocument()
+            if let arr = otherDoc.get("uids") as? [String], arr.contains(me) { return true }
+
+            // 3) blocks 컬렉션 상태 확인(양방향 중 하나라도 active)
+            let a = "\(me)_\(other)"
+            let b = "\(other)_\(me)"
+            let blockA = try await db.collection("blocks").document(a).getDocument()
+            if (blockA.get("status") as? String) == "active" { return true }
+            let blockB = try await db.collection("blocks").document(b).getDocument()
+            if (blockB.get("status") as? String) == "active" { return true }
+
+            return false
+        } catch {
+            dbg("⚠️ isBlockedWithOther error: \(error.localizedDescription)")
+            // 에러 시엔 보수적으로 전송을 막고 싶다면 true로 바꿔도 됨
+            return false
+        }
+    }
+
     
     private func performLeave() {
         guard hasValidRoomId, myUid != "unknown" else {

@@ -88,7 +88,7 @@ struct MainTabView: View {
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
             FunctionsAPI.selfHealIfDanglingRoomThen { _ in }
         }
-        // ✅ 하단 탭칩 인셋 — 이건 단 한 번만!
+        // ✅ 웜보이스 하단 탭바 (글래스 바 + 그라데이션 링 + 소프트 글로우)
         .safeAreaInset(edge: .bottom) {
             HStack(spacing: 12) {
                 TabChip(system: "phone.fill", title: "전화",
@@ -100,19 +100,29 @@ struct MainTabView: View {
                 TabChip(system: "person.crop.circle", title: "나",
                         isOn: selection == .profile) { selection = .profile }
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
             .background(
-                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .fill(.thinMaterial)
+                // 부드러운 글래스 바 + 그라데이션 링
+                RoundedRectangle(cornerRadius: 20, style: .continuous)
+                    .fill(.ultraThinMaterial)
                     .overlay(
-                        RoundedRectangle(cornerRadius: 18, style: .continuous)
-                            .strokeBorder(Color.white.opacity(0.14), lineWidth: 1)
+                        RoundedRectangle(cornerRadius: 20, style: .continuous)
+                            .stroke(
+                                LinearGradient(colors: [
+                                    Color(red: 1.00, green: 0.47, blue: 0.58).opacity(0.55), // rose
+                                    Color(red: 1.00, green: 0.70, blue: 0.44).opacity(0.55)  // peach
+                                ], startPoint: .leading, endPoint: .trailing),
+                                lineWidth: 1
+                            )
+                            .blendMode(.overlay)
                     )
+                    .shadow(color: Color(red: 1.00, green: 0.47, blue: 0.58).opacity(0.12), radius: 18, y: 6)
+
                     .shadow(color: .black.opacity(0.10), radius: 10, y: 4)
             )
             .padding(.horizontal, 16)
-            .padding(.bottom, 6)
+            .padding(.bottom, 8)
         }
     }
 
@@ -165,33 +175,87 @@ struct MainTabView: View {
         let title: String
         let isOn: Bool
         let action: () -> Void
+
+        @State private var glowPhase: CGFloat = 0
+
         var body: some View {
             Button(action: action) {
                 HStack(spacing: 6) {
-                    Image(systemName: system).font(.system(size: 14, weight: .semibold))
-                    Text(title).font(.system(size: 12, weight: .semibold))
-                        .lineLimit(1).minimumScaleFactor(0.9)
+                    Image(systemName: system)
+                        .font(.system(size: isOn ? 16 : 14, weight: .semibold))
+                        .symbolRenderingMode(.hierarchical)
+                        .padding(.leading, 1)
+
+                    Text(title)
+                        .font(.system(size: 12, weight: .semibold))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.9)
                 }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 8)
-                .frame(minWidth: 78, maxWidth: 96)
-                .background {
-                    if isOn {
-                        LinearGradient(colors: [AppTheme.purple, AppTheme.blue],
-                                       startPoint: .leading, endPoint: .trailing)
-                    } else {
-                        Color.white.opacity(0.10)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 9)
+                .frame(minWidth: 78, maxWidth: 98)
+                .background(
+                    ZStack {
+                        // 비활성: 은은한 글래스
+                        RoundedRectangle(cornerRadius: 13, style: .continuous)
+                            .fill(isOn ? .clear : Color.white.opacity(0.10))
+
+                        // 활성: 그라데이션 오라 + 소프트 글로우
+                        if isOn {
+                            // 내부 베이스
+                            RoundedRectangle(cornerRadius: 13, style: .continuous)
+                                .fill(
+                                    LinearGradient(colors: [
+                                        Color(red: 0.98, green: 0.49, blue: 0.62).opacity(0.95), // rose
+                                        Color(red: 1.00, green: 0.62, blue: 0.42).opacity(0.95)  // peach
+                                    ], startPoint: .leading, endPoint: .trailing)
+                                )
+
+                            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                .stroke(
+                                    LinearGradient(colors: [
+                                        Color(red: 0.99, green: 0.50, blue: 0.62).opacity(0.55),
+                                        Color(red: 1.00, green: 0.69, blue: 0.43).opacity(0.55)
+                                    ], startPoint: .leading, endPoint: .trailing),
+                                    lineWidth: 2
+                                )
+                                .blur(radius: 6)
+                                .opacity(0.7)
+
+
+                            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                .stroke(
+                                    LinearGradient(colors: [
+                                        Color(red: 1.00, green: 0.47, blue: 0.58).opacity(0.35),
+                                        Color(red: 1.00, green: 0.70, blue: 0.44).opacity(0.35)
+                                    ], startPoint: .topLeading, endPoint: .bottomTrailing),
+                                    lineWidth: 3
+                                )
+
+                                .scaleEffect(1 + 0.015 * CGFloat(sin(Double(glowPhase))))
+                                .opacity(0.7 + 0.3 * Double(sin(Double(glowPhase))))
+                                .animation(.easeInOut(duration: 2.2).repeatForever(autoreverses: true), value: glowPhase)
+
+                        }
                     }
-                }
-                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .stroke(isOn ? Color.white.opacity(0.22) : Color.white.opacity(0.10), lineWidth: 1)
                 )
-                .foregroundColor(isOn ? .white : .white.opacity(0.90))
-                .scaleEffect(isOn ? 1.02 : 1.0)
-                .animation(.spring(response: 0.26, dampingFraction: 0.9), value: isOn)
+                .clipShape(RoundedRectangle(cornerRadius: 13, style: .continuous))
+                .overlay(
+                    // 라이트 스트로크 (활성 시 더 선명)
+                    RoundedRectangle(cornerRadius: 13, style: .continuous)
+                        .stroke(isOn ? Color.white.opacity(0.28) : Color.white.opacity(0.12), lineWidth: 1)
+                )
+                .foregroundColor(isOn ? .white : .white.opacity(0.92))
+                .shadow(color: isOn ? Color(red: 1.00, green: 0.47, blue: 0.58).opacity(0.25) : .clear, radius: 10, y: 4)
+                .shadow(color: isOn ? Color(red: 1.00, green: 0.70, blue: 0.44).opacity(0.18) : .clear, radius: 12, y: 6)
+                .scaleEffect(isOn ? 1.04 : 1.0)
+                .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                .onAppear {
+                    // 활성 탭일 때만 부드러운 숨쉬기 애니메이션 구동
+                    if isOn { glowPhase = .pi / 2 }
+                }
             }
+            .animation(.spring(response: 0.28, dampingFraction: 0.9), value: isOn)
         }
     }
 }
